@@ -4,3 +4,4 @@ __pycache__/
 db.sqlite3
 instance/
 .pytest_cache/
+vehicle_parking_app.db
