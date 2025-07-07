@@ -1,3 +1,6 @@
-flask 
-sqlalchemy 
-werkzeug
+flask
+sqlalchemy
+Flask-SQLAlchemy
+Flask-CORS
+PyJWT
+python-dotenv
