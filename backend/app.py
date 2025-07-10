@@ -4,6 +4,7 @@ from config import Config
 from models import db, User, UserRole
 from auth_routes import auth_bp
 from dashboard_routes import dashboard_bp
+from admin_lot_routes import admin_lot_bp  
 from werkzeug.security import generate_password_hash
 
 def create_app():
@@ -24,6 +25,7 @@ def create_app():
     # Register blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(admin_lot_bp)  # Register admin lot management blueprint
     
     # Root endpoint
     @app.route('/')
@@ -35,7 +37,8 @@ def create_app():
             'available_endpoints': {
                 'authentication': ['/auth/register', '/auth/login', '/auth/verify'],
                 'dashboards': ['/admin/dashboard', '/user/dashboard'],
-                'profile': ['/profile']
+                'profile': ['/profile'],
+                'admin_management': ['/admin/lots', '/admin/spots', '/admin/users', '/admin/dashboard/summary']  # Added admin management endpoints
             }
         })
     
@@ -45,7 +48,8 @@ def create_app():
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
-            'authentication': 'enabled'
+            'authentication': 'enabled',
+            'admin_management': 'enabled'  # Added admin management status
         })
     
     # Error handlers
@@ -90,5 +94,5 @@ if __name__ == '__main__':
     app = create_app()
     setup_database(app)
     print("Starting Vehicle Parking App...")
-    print("Authentication & Role-based Access System Ready")
     app.run(debug=True, host='0.0.0.0', port=5000)
+

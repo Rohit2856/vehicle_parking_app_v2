@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Parking App - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container">
+                <a class="navbar-brand" href="#">🚗 Vehicle Parking App</a>
+                <div class="navbar-nav ms-auto">
+                    <span class="navbar-text" v-if="user">
+                        Welcome, {{ user.username }} ({{ user.role }})
+                    </span>
+                    <button class="btn btn-outline-light ms-2" @click="logout" v-if="user">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Login Form -->
+        <div class="container mt-4" v-if="!user">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h4>Admin Login</h4>
+                        </div>
+                        <div class="card-body">
+                            <form @submit.prevent="login">
+                                <div class="mb-3">
+                                    <label class="form-label">Username</label>
+                                    <input type="text" class="form-control" v-model="loginForm.username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <input type="password" class="form-control" v-model="loginForm.password" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Login</button>
+                            </form>
+                            <div class="alert alert-danger mt-3" v-if="error">
+                                {{ error }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <div class="container mt-4" v-if="user && user.role === 'admin'">
+            <div class="row">
+                <div class="col-12">
+                    <h2>Admin Dashboard</h2>
+                    
+                    <!-- Navigation Tabs -->
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link" :class="{active: activeTab === 'overview'}" 
+                               @click="activeTab = 'overview'">Overview</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" :class="{active: activeTab === 'lots'}" 
+                               @click="activeTab = 'lots'; fetchParkingLots()">Parking Lots</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" :class="{active: activeTab === 'spots'}" 
+                               @click="activeTab = 'spots'; fetchParkingSpots()">Parking Spots</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" :class="{active: activeTab === 'users'}" 
+                               @click="activeTab = 'users'; fetchUsers()">Users</a>
+                        </li>
+                    </ul>
+
+                    <!-- Overview Tab -->
+                    <div class="tab-content mt-3">
+                        <div v-if="activeTab === 'overview'">
+                            <div class="row" v-if="dashboardSummary">
+                                <div class="col-md-3">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body">
+                                            <h5>Total Users</h5>
+                                            <h3>{{ dashboardSummary.system_overview.total_registered_users }}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body">
+                                            <h5>Parking Lots</h5>
+                                            <h3>{{ dashboardSummary.system_overview.total_parking_lots }}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-info text-white">
+                                        <div class="card-body">
+                                            <h5>Total Spots</h5>
+                                            <h3>{{ dashboardSummary.system_overview.total_parking_spots }}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-warning text-white">
+                                        <div class="card-body">
+                                            <h5>Occupancy Rate</h5>
+                                            <h3>{{ dashboardSummary.system_overview.occupancy_rate }}%</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parking Lots Tab -->
+                        <div v-if="activeTab === 'lots'">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4>Parking Lots Management</h4>
+                                <button class="btn btn-primary" @click="showCreateLotModal = true">
+                                    Create New Lot
+                                </button>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Location Name</th>
+                                            <th>Price</th>
+                                            <th>Total Spots</th>
+                                            <th>Occupied</th>
+                                            <th>Available</th>
+                                            <th>Occupancy %</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="lot in parkingLots" :key="lot.id">
+                                            <td>{{ lot.id }}</td>
+                                            <td>{{ lot.prime_location_name }}</td>
+                                            <td>${{ lot.price }}</td>
+                                            <td>{{ lot.spot_summary.total_spots }}</td>
+                                            <td>{{ lot.spot_summary.occupied_spots }}</td>
+                                            <td>{{ lot.spot_summary.available_spots }}</td>
+                                            <td>{{ lot.spot_summary.occupancy_rate }}%</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-info me-1" 
+                                                        @click="viewLotDetails(lot.id)">View</button>
+                                                <button class="btn btn-sm btn-warning me-1" 
+                                                        @click="editLot(lot)">Edit</button>
+                                                <button class="btn btn-sm btn-danger" 
+                                                        @click="deleteLot(lot.id)">Delete</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Parking Spots Tab -->
+                        <div v-if="activeTab === 'spots'">
+                            <h4>Parking Spots Overview</h4>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Spot ID</th>
+                                            <th>Lot Name</th>
+                                            <th>Status</th>
+                                            <th>Current User</th>
+                                            <th>Parking Duration</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="spot in parkingSpots" :key="spot.id">
+                                            <td>{{ spot.id }}</td>
+                                            <td>{{ spot.lot_name }}</td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="spot.status === 'O' ? 'bg-danger' : 'bg-success'">
+                                                    {{ spot.status_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {{ spot.active_reservation ? spot.active_reservation.username : '-' }}
+                                            </td>
+                                            <td>
+                                                {{ spot.active_reservation ? 
+                                                   Math.round(spot.active_reservation.duration_hours * 100) / 100 + ' hours' : '-' }}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Users Tab -->
+                        <div v-if="activeTab === 'users'">
+                            <h4>Users Management</h4>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>User ID</th>
+                                            <th>Username</th>
+                                            <th>Total Reservations</th>
+                                            <th>Currently Parked</th>
+                                            <th>Total Spent</th>
+                                            <th>Current Spots</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="user in users" :key="user.id">
+                                            <td>{{ user.id }}</td>
+                                            <td>{{ user.username }}</td>
+                                            <td>{{ user.parking_stats.total_reservations }}</td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="user.is_currently_parked ? 'bg-warning' : 'bg-secondary'">
+                                                    {{ user.is_currently_parked ? 'Yes' : 'No' }}
+                                                </span>
+                                            </td>
+                                            <td>${{ user.parking_stats.total_amount_spent }}</td>
+                                            <td>
+                                                <span v-if="user.current_parking.length > 0">
+                                                    Spot {{ user.current_parking[0].spot_id }}
+                                                </span>
+                                                <span v-else>-</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Lot Modal -->
+        <div class="modal fade" :class="{show: showCreateLotModal}" 
+             :style="{display: showCreateLotModal ? 'block' : 'none'}" v-if="showCreateLotModal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Create New Parking Lot</h5>
+                        <button type="button" class="btn-close" @click="showCreateLotModal = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="createParkingLot">
+                            <div class="mb-3">
+                                <label class="form-label">Location Name</label>
+                                <input type="text" class="form-control" v-model="newLot.prime_location_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Price per Hour</label>
+                                <input type="number" step="0.01" class="form-control" v-model="newLot.price" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Address</label>
+                                <textarea class="form-control" v-model="newLot.address"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Pin Code</label>
+                                <input type="text" class="form-control" v-model="newLot.pin_code">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Number of Spots</label>
+                                <input type="number" class="form-control" v-model="newLot.number_of_spots" required min="1" max="1000">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Create Lot</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin_dashboard.js"></script>
+</body>
+</html>
