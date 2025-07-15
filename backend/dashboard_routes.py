@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from auth_utils import token_required, admin_required, user_required
-from models import User, ParkingLot, ParkingSpot, Reservation, UserRole
+from models import db, User, ParkingLot, ParkingSpot, Reservation, UserRole
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -64,6 +64,24 @@ def user_dashboard(current_user):
         # Calculate total spending
         total_spent = sum([r.parking_cost for r in completed_reservations if r.parking_cost])
         
+        # Current reservation details
+        current_reservation = None
+        if active_reservations:
+            reservation = active_reservations[0]
+            from datetime import datetime
+            current_time = datetime.utcnow()
+            duration_seconds = (current_time - reservation.parking_timestamp).total_seconds()
+            duration_hours = round(duration_seconds / 3600, 2)
+            estimated_cost = round(duration_hours * reservation.spot.lot.price, 2)
+            
+            current_reservation = {
+                'reservation_id': reservation.id,
+                'spot_id': reservation.spot_id,
+                'lot_name': reservation.spot.lot.prime_location_name,
+                'current_duration_hours': duration_hours,
+                'estimated_cost': estimated_cost
+            }
+        
         dashboard_data = {
             'welcome_message': f'Welcome to User Dashboard, {current_user.username}',
             'user_info': {
@@ -80,7 +98,7 @@ def user_dashboard(current_user):
             },
             'current_status': {
                 'has_active_parking': len(active_reservations) > 0,
-                'active_spots': [r.spot_id for r in active_reservations]
+                'current_reservation': current_reservation
             }
         }
         

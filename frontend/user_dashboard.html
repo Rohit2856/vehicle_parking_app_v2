@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Parking App - User Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="#"> Vehicle Parking App</a>
+                <div class="navbar-nav ms-auto">
+                    <span class="navbar-text" v-if="user">
+                        Welcome, {{ user.username }}
+                    </span>
+                    <button class="btn btn-outline-light ms-2" @click="logout" v-if="user">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Login Form -->
+        <div class="container mt-4" v-if="!user">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h4>User Login</h4>
+                        </div>
+                        <div class="card-body">
+                            <form @submit.prevent="login">
+                                <div class="mb-3">
+                                    <label class="form-label">Username</label>
+                                    <input type="text" class="form-control" v-model="loginForm.username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <input type="password" class="form-control" v-model="loginForm.password" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Login</button>
+                                <button type="button" class="btn btn-link" @click="showRegister = true">Register</button>
+                            </form>
+                            <div class="alert alert-danger mt-3" v-if="error">
+                                {{ error }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Form -->
+        <div class="modal fade" :class="{show: showRegister}" :style="{display: showRegister ? 'block' : 'none'}" v-if="showRegister">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Register New User</h5>
+                        <button type="button" class="btn-close" @click="showRegister = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="register">
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" v-model="registerForm.username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input type="password" class="form-control" v-model="registerForm.password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Register</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Dashboard -->
+        <div class="container mt-4" v-if="user && user.role === 'user'">
+            <!-- Current Reservation Alert -->
+            <div class="alert alert-info" v-if="currentReservation">
+                <h5>🚗 Currently Parked</h5>
+                <p><strong>Location:</strong> {{ currentReservation.lot_name }}</p>
+                <p><strong>Spot ID:</strong> {{ currentReservation.spot_id }}</p>
+                <p><strong>Duration:</strong> {{ currentReservation.current_duration_hours }} hours</p>
+                <p><strong>Estimated Cost:</strong> ${{ currentReservation.estimated_cost }}</p>
+                <button class="btn btn-warning" @click="releaseSpot(currentReservation.reservation_id)">
+                    Release Spot
+                </button>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link" :class="{active: activeTab === 'dashboard'}" 
+                       @click="activeTab = 'dashboard'; fetchDashboard()">Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{active: activeTab === 'lots'}" 
+                       @click="activeTab = 'lots'; fetchAvailableLots()">Available Lots</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{active: activeTab === 'history'}" 
+                       @click="activeTab = 'history'; fetchHistory()">Parking History</a>
+                </li>
+            </ul>
+
+            <!-- Dashboard Tab -->
+            <div class="tab-content mt-3">
+                <div v-if="activeTab === 'dashboard'">
+                    <div class="row" v-if="dashboardData">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <h5>Total Reservations</h5>
+                                    <h3>{{ dashboardData.parking_stats.total_reservations }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <h5>Active Reservations</h5>
+                                    <h3>{{ dashboardData.parking_stats.active_reservations }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <h5>Total Spent</h5>
+                                    <h3>${{ dashboardData.parking_stats.total_amount_spent }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <h5>Available Lots</h5>
+                                    <h3>{{ dashboardData.parking_stats.available_parking_lots }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Available Lots Tab -->
+                <div v-if="activeTab === 'lots'">
+                    <h4>Available Parking Lots</h4>
+                    <div class="row">
+                        <div class="col-md-4" v-for="lot in availableLots" :key="lot.id">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ lot.prime_location_name }}</h5>
+                                    <p class="card-text">
+                                        <strong>Price:</strong> ${{ lot.price }}/hour<br>
+                                        <strong>Address:</strong> {{ lot.address }}<br>
+                                        <strong>Available Spots:</strong> {{ lot.available_spots }}/{{ lot.number_of_spots }}
+                                    </p>
+                                    <button class="btn btn-primary" 
+                                            @click="reserveSpot(lot.id)"
+                                            :disabled="currentReservation">
+                                        Reserve Spot
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div v-if="activeTab === 'history'">
+                    <h4>Parking History</h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Lot Name</th>
+                                    <th>Spot ID</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Duration</th>
+                                    <th>Cost</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="record in parkingHistory" :key="record.reservation_id">
+                                    <td>{{ record.lot_name }}</td>
+                                    <td>{{ record.spot_id }}</td>
+                                    <td>{{ formatDateTime(record.parking_timestamp) }}</td>
+                                    <td>{{ record.leaving_timestamp ? formatDateTime(record.leaving_timestamp) : '-' }}</td>
+                                    <td>{{ record.duration_hours ? record.duration_hours + ' hours' : '-' }}</td>
+                                    <td>{{ record.parking_cost ? '$' + record.parking_cost : '-' }}</td>
+                                    <td>
+                                        <span class="badge" :class="record.status === 'Active' ? 'bg-success' : 'bg-secondary'">
+                                            {{ record.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="user_dashboard.js"></script>
+</body>
+</html>

@@ -4,7 +4,8 @@ from config import Config
 from models import db, User, UserRole
 from auth_routes import auth_bp
 from dashboard_routes import dashboard_bp
-from admin_lot_routes import admin_lot_bp  
+from admin_lot_routes import admin_lot_bp
+from user_routes import user_bp  # Import user routes blueprint
 from werkzeug.security import generate_password_hash
 
 def create_app():
@@ -25,7 +26,8 @@ def create_app():
     # Register blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
-    app.register_blueprint(admin_lot_bp)  # Register admin lot management blueprint
+    app.register_blueprint(admin_lot_bp)
+    app.register_blueprint(user_bp)  # Register user routes blueprint
     
     # Root endpoint
     @app.route('/')
@@ -38,7 +40,8 @@ def create_app():
                 'authentication': ['/auth/register', '/auth/login', '/auth/verify'],
                 'dashboards': ['/admin/dashboard', '/user/dashboard'],
                 'profile': ['/profile'],
-                'admin_management': ['/admin/lots', '/admin/spots', '/admin/users', '/admin/dashboard/summary']  # Added admin management endpoints
+                'admin_management': ['/admin/lots', '/admin/spots', '/admin/users', '/admin/dashboard/summary'],
+                'user_parking': ['/user/lots', '/user/reserve', '/user/history', '/user/current-reservation']  # Added user endpoints
             }
         })
     
@@ -49,7 +52,8 @@ def create_app():
             'status': 'healthy',
             'database': 'connected',
             'authentication': 'enabled',
-            'admin_management': 'enabled'  # Added admin management status
+            'admin_management': 'enabled',
+            'user_parking': 'enabled'  # Added user parking status
         })
     
     # Error handlers
@@ -94,5 +98,8 @@ if __name__ == '__main__':
     app = create_app()
     setup_database(app)
     print("Starting Vehicle Parking App...")
+    print("Authentication & Role-based Access System Ready")
+    print("Admin Dashboard & Lot Management System Ready")
+    print("User Dashboard & Reservation System Ready")  # Added user system status
     app.run(debug=True, host='0.0.0.0', port=5000)
 
