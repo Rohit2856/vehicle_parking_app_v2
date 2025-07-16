@@ -430,3 +430,39 @@ def get_admin_dashboard_summary(current_user):
         
     except Exception as e:
         return jsonify({'error': 'Failed to fetch dashboard summary'}), 500
+
+@admin_lot_bp.route('/reservations', methods=['GET'])
+@token_required
+@admin_required
+def get_all_reservations(current_user):
+    # Return all users' reservation records and cost
+    try:
+        reservations = Reservation.query.order_by(Reservation.parking_timestamp.desc()).all()
+        history = []
+        total_cost = 0
+        for r in reservations:
+            duration_hours = None
+            if r.leaving_timestamp and r.parking_timestamp:
+                duration_seconds = (r.leaving_timestamp - r.parking_timestamp).total_seconds()
+                duration_hours = round(duration_seconds / 3600, 2)
+            if r.parking_cost:
+                total_cost += r.parking_cost
+            history.append({
+                'reservation_id': r.id,
+                'username': r.user.username,
+                'spot_id': r.spot_id,
+                'lot_id': r.spot.lot_id,
+                'lot_name': r.spot.lot.prime_location_name,
+                'parking_timestamp': r.parking_timestamp.isoformat() if r.parking_timestamp else None,
+                'leaving_timestamp': r.leaving_timestamp.isoformat() if r.leaving_timestamp else None,
+                'duration_hours': duration_hours,
+                'parking_cost': r.parking_cost,
+                'status': 'Active' if not r.leaving_timestamp else 'Completed'
+            })
+        return jsonify({
+            'reservations': history,
+            'total_reservations': len(history),
+            'total_revenue': round(total_cost, 2)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': 'Failed to fetch reservation records'}), 500

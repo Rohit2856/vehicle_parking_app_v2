@@ -16,6 +16,17 @@ createApp({
             parkingSpots: [],
             users: [],
             showCreateLotModal: false,
+            showViewModal: false,
+            showEditModal: false,
+            selectedLotDetails: null,
+            editLotData: {
+                id: null,
+                prime_location_name: '',
+                price: '',
+                address: '',
+                pin_code: '',
+                number_of_spots: ''
+            },
             newLot: {
                 prime_location_name: '',
                 price: '',
@@ -133,6 +144,46 @@ createApp({
             }
         },
         
+        async viewLotDetails(lotId) {
+            try {
+                const response = await axios.get(`http://localhost:5000/admin/lots/${lotId}`, {
+                    headers: { Authorization: `Bearer ${this.token}` }
+                });
+                this.selectedLotDetails = response.data.lot_details;
+                this.showViewModal = true;
+            } catch (error) {
+                alert('Failed to fetch lot details: ' + (error.response?.data?.error || 'Unknown error'));
+            }
+        },
+        
+        editLot(lot) {
+            // Copy lot data to edit form
+            this.editLotData = {
+                id: lot.id,
+                prime_location_name: lot.prime_location_name,
+                price: lot.price,
+                address: lot.address || '',
+                pin_code: lot.pin_code || '',
+                number_of_spots: lot.number_of_spots
+            };
+            this.showEditModal = true;
+        },
+        
+        async updateParkingLot() {
+            try {
+                const response = await axios.put(`http://localhost:5000/admin/lots/${this.editLotData.id}`, 
+                    this.editLotData, {
+                    headers: { Authorization: `Bearer ${this.token}` }
+                });
+                
+                this.showEditModal = false;
+                this.fetchParkingLots();
+                alert('Parking lot updated successfully!');
+            } catch (error) {
+                alert('Failed to update parking lot: ' + (error.response?.data?.error || 'Unknown error'));
+            }
+        },
+        
         async deleteLot(lotId) {
             if (confirm('Are you sure you want to delete this parking lot?')) {
                 try {
@@ -147,20 +198,9 @@ createApp({
             }
         },
         
-        async viewLotDetails(lotId) {
-            try {
-                const response = await axios.get(`http://localhost:5000/admin/lots/${lotId}`, {
-                    headers: { Authorization: `Bearer ${this.token}` }
-                });
-                alert(JSON.stringify(response.data.lot_details, null, 2));
-            } catch (error) {
-                alert('Failed to fetch lot details');
-            }
-        },
-        
-        editLot(lot) {
-            // Implement edit functionality
-            alert('Edit functionality to be implemented');
+        formatDateTime(dateString) {
+            if (!dateString) return '-';
+            return new Date(dateString).toLocaleString();
         }
     }
 }).mount('#app');

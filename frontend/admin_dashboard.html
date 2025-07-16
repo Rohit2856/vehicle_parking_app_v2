@@ -281,6 +281,102 @@
                 </div>
             </div>
         </div>
+
+        <!-- View Lot Details Modal -->
+        <div class="modal fade" :class="{show: showViewModal}" 
+             :style="{display: showViewModal ? 'block' : 'none'}" v-if="showViewModal">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Parking Lot Details</h5>
+                        <button type="button" class="btn-close" @click="showViewModal = false"></button>
+                    </div>
+                    <div class="modal-body" v-if="selectedLotDetails">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Basic Information</h6>
+                                <p><strong>Location:</strong> {{ selectedLotDetails.prime_location_name }}</p>
+                                <p><strong>Price:</strong> ${{ selectedLotDetails.price }}/hour</p>
+                                <p><strong>Address:</strong> {{ selectedLotDetails.address || 'N/A' }}</p>
+                                <p><strong>Pin Code:</strong> {{ selectedLotDetails.pin_code || 'N/A' }}</p>
+                                <p><strong>Total Spots:</strong> {{ selectedLotDetails.number_of_spots }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Summary</h6>
+                                <p><strong>Total Spots:</strong> {{ selectedLotDetails.summary.total_spots }}</p>
+                                <p><strong>Occupied:</strong> {{ selectedLotDetails.summary.occupied_spots }}</p>
+                                <p><strong>Available:</strong> {{ selectedLotDetails.summary.available_spots }}</p>
+                                <p><strong>Occupancy:</strong> {{ Math.round((selectedLotDetails.summary.occupied_spots / selectedLotDetails.summary.total_spots) * 100) }}%</p>
+                            </div>
+                        </div>
+                        
+                        <h6 class="mt-4">Parking Spots</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Spot ID</th>
+                                        <th>Status</th>
+                                        <th>Current User</th>
+                                        <th>Parking Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="spot in selectedLotDetails.spots" :key="spot.id">
+                                        <td>{{ spot.id }}</td>
+                                        <td>
+                                            <span class="badge" :class="spot.status === 'O' ? 'bg-danger' : 'bg-success'">
+                                                {{ spot.status === 'O' ? 'Occupied' : 'Available' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ spot.active_reservation ? spot.active_reservation.username : '-' }}</td>
+                                        <td>{{ spot.active_reservation ? formatDateTime(spot.active_reservation.parking_timestamp) : '-' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Lot Modal -->
+        <div class="modal fade" :class="{show: showEditModal}" 
+             :style="{display: showEditModal ? 'block' : 'none'}" v-if="showEditModal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Parking Lot</h5>
+                        <button type="button" class="btn-close" @click="showEditModal = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="updateParkingLot">
+                            <div class="mb-3">
+                                <label class="form-label">Location Name</label>
+                                <input type="text" class="form-control" v-model="editLotData.prime_location_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Price per Hour</label>
+                                <input type="number" step="0.01" class="form-control" v-model="editLotData.price" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Address</label>
+                                <textarea class="form-control" v-model="editLotData.address"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Pin Code</label>
+                                <input type="text" class="form-control" v-model="editLotData.pin_code">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Number of Spots</label>
+                                <input type="number" class="form-control" v-model="editLotData.number_of_spots" required min="1" max="1000">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Update Lot</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="admin_dashboard.js"></script>
