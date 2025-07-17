@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div id="app">
@@ -77,6 +78,10 @@
                             <a class="nav-link" :class="{active: activeTab === 'users'}" 
                                @click="activeTab = 'users'; fetchUsers()">Users</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" :class="{active: activeTab === 'analytics'}" 
+                            @click="activeTab = 'analytics'; fetchAnalytics()">Analytics</a>
+                        </li>                        
                     </ul>
 
                     <!-- Overview Tab -->
@@ -239,6 +244,95 @@
                                 </table>
                             </div>
                         </div>
+                        
+                        <!-- Analytics Tab -->
+                        <div v-if="activeTab === 'analytics'">
+                            <h4>Parking Analytics & Charts</h4>
+                            
+                            <!-- Charts Row 1 -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6>Daily Reservations (Last 7 Days)</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <canvas id="dailyReservationsChart" width="400" height="200"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6>Lot Occupancy Rates</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <canvas id="lotOccupancyChart" width="400" height="200"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Charts Row 2 -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6>Monthly Revenue (Last 6 Months)</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <canvas id="monthlyRevenueChart" width="400" height="200"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6>Parking Duration Distribution</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <canvas id="durationDistributionChart" width="400" height="200"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Revenue Summary Cards -->
+                            <div class="row" v-if="revenueSummary">
+                                <div class="col-md-3">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body">
+                                            <h5>Total Revenue</h5>
+                                            <h3>${{ revenueSummary.total_revenue }}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body">
+                                            <h5>Today's Revenue</h5>
+                                            <h3>${{ revenueSummary.today_revenue }}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-info text-white">
+                                        <div class="card-body">
+                                            <h5>This Month</h5>
+                                            <h3>${{ revenueSummary.month_revenue }}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-warning text-white">
+                                        <div class="card-body">
+                                            <h5>Average Revenue</h5>
+                                            <h3>${{ revenueSummary.average_revenue }}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>                        
                     </div>
                 </div>
             </div>

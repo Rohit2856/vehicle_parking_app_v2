@@ -5,7 +5,8 @@ from models import db, User, UserRole
 from auth_routes import auth_bp
 from dashboard_routes import dashboard_bp
 from admin_lot_routes import admin_lot_bp
-from user_routes import user_bp  # Import user routes blueprint
+from user_routes import user_bp
+from analytics_routes import analytics_bp  
 from werkzeug.security import generate_password_hash
 
 def create_app():
@@ -17,7 +18,8 @@ def create_app():
     CORS(app, resources={
         r"/auth/*": {"origins": "*"},
         r"/admin/*": {"origins": "*"},
-        r"/user/*": {"origins": "*"}
+        r"/user/*": {"origins": "*"},
+        r"/analytics/*": {"origins": "*"}  # Add analytics CORS
     })
     
     # Initialize extensions
@@ -27,7 +29,8 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(admin_lot_bp)
-    app.register_blueprint(user_bp)  # Register user routes blueprint
+    app.register_blueprint(user_bp)
+    app.register_blueprint(analytics_bp)  # Register analytics blueprint
     
     # Root endpoint
     @app.route('/')
@@ -41,7 +44,8 @@ def create_app():
                 'dashboards': ['/admin/dashboard', '/user/dashboard'],
                 'profile': ['/profile'],
                 'admin_management': ['/admin/lots', '/admin/spots', '/admin/users', '/admin/dashboard/summary'],
-                'user_parking': ['/user/lots', '/user/reserve', '/user/history', '/user/current-reservation']  # Added user endpoints
+                'user_parking': ['/user/lots', '/user/reserve', '/user/history', '/user/current-reservation'],
+                'analytics': ['/analytics/admin/parking-stats', '/analytics/admin/revenue-summary', '/analytics/user/parking-stats']  # Add analytics endpoints
             }
         })
     
@@ -53,7 +57,8 @@ def create_app():
             'database': 'connected',
             'authentication': 'enabled',
             'admin_management': 'enabled',
-            'user_parking': 'enabled'  # Added user parking status
+            'user_parking': 'enabled',
+            'analytics': 'enabled'  # Add analytics status
         })
     
     # Error handlers
@@ -100,6 +105,6 @@ if __name__ == '__main__':
     print("Starting Vehicle Parking App...")
     print("Authentication & Role-based Access System Ready")
     print("Admin Dashboard & Lot Management System Ready")
-    print("User Dashboard & Reservation System Ready")  # Added user system status
+    print("User Dashboard & Reservation System Ready")
+    print("Analytics & Charts System Ready")  # Add analytics system status
     app.run(debug=True, host='0.0.0.0', port=5000)
-
