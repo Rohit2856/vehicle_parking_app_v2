@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 from auth_utils import token_required, admin_required, user_required
 from models import db, ParkingLot, ParkingSpot, Reservation, User, UserRole, ParkingSpotStatus
+from cache_manager import cache_response
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_
 
@@ -9,8 +10,9 @@ analytics_bp = Blueprint('analytics', __name__, url_prefix='/analytics')
 @analytics_bp.route('/admin/parking-stats', methods=['GET'])
 @token_required
 @admin_required
+@cache_response('analytics_admin_parking_stats', ttl=900)
 def get_admin_parking_stats(current_user):
-    # Get parking statistics for admin dashboard charts
+    # Get parking statistics for admin dashboard charts (cached for 15 minutes)
     try:
         # Daily parking statistics for the last 7 days
         end_date = datetime.utcnow()
@@ -32,6 +34,9 @@ def get_admin_parking_stats(current_user):
                 'date': date.strftime('%Y-%m-%d'),
                 'reservations': reservations_count
             })
+        
+        # Reverse to show chronological order
+        daily_stats.reverse()
         
         # Lot occupancy statistics
         lot_stats = []
@@ -67,6 +72,9 @@ def get_admin_parking_stats(current_user):
                 'revenue': round(revenue, 2) if revenue else 0
             })
         
+        # Reverse to show chronological order
+        monthly_revenue.reverse()
+        
         # Parking duration distribution
         duration_stats = []
         completed_reservations = Reservation.query.filter(
@@ -88,11 +96,30 @@ def get_admin_parking_stats(current_user):
                         range_item['count'] += 1
                         break
         
+        # Ensure minimum data for charts
+        if not daily_stats or all(item['reservations'] == 0 for item in daily_stats):
+            current_date = datetime.utcnow().strftime('%Y-%m-%d')
+            daily_stats = [{'date': current_date, 'reservations': 0}]
+        
+        if not monthly_revenue or all(item['revenue'] == 0 for item in monthly_revenue):
+            current_month = datetime.utcnow().strftime('%Y-%m')
+            monthly_revenue = [{'month': current_month, 'revenue': 0}]
+        
+        if not any(item['count'] > 0 for item in duration_ranges):
+            duration_ranges[0]['count'] = 1
+        
+        if not lot_stats:
+            lot_stats = [{'lot_name': 'No parking lots', 'total_spots': 0, 'occupied_spots': 0, 'occupancy_rate': 0}]
+        
         return jsonify({
             'daily_reservations': daily_stats,
             'lot_occupancy': lot_stats,
             'monthly_revenue': monthly_revenue,
-            'duration_distribution': duration_ranges
+            'duration_distribution': duration_ranges,
+            'cache_info': {
+                'cached_at': datetime.utcnow().isoformat(),
+                'ttl': 900
+            }
         }), 200
         
     except Exception as e:
@@ -101,8 +128,9 @@ def get_admin_parking_stats(current_user):
 @analytics_bp.route('/admin/revenue-summary', methods=['GET'])
 @token_required
 @admin_required
+@cache_response('analytics_admin_revenue_summary', ttl=900)
 def get_admin_revenue_summary(current_user):
-    # Get revenue summary for admin dashboard
+    # Get revenue summary for admin dashboard (cached for 15 minutes)
     try:
         # Total revenue
         total_revenue = db.session.query(func.sum(Reservation.parking_cost)).filter(
@@ -158,7 +186,11 @@ def get_admin_revenue_summary(current_user):
             'today_revenue': round(today_revenue, 2) if today_revenue else 0,
             'month_revenue': round(month_revenue, 2) if month_revenue else 0,
             'average_revenue': round(avg_revenue, 2) if avg_revenue else 0,
-            'lot_revenue': lot_revenue
+            'lot_revenue': lot_revenue,
+            'cache_info': {
+                'cached_at': datetime.utcnow().isoformat(),
+                'ttl': 900
+            }
         }), 200
         
     except Exception as e:
@@ -167,8 +199,9 @@ def get_admin_revenue_summary(current_user):
 @analytics_bp.route('/user/parking-stats', methods=['GET'])
 @token_required
 @user_required
+@cache_response('analytics_user_parking_stats', ttl=300, user_specific=True)
 def get_user_parking_stats(current_user):
-    # Get parking statistics for user dashboard charts
+    # Get parking statistics for user dashboard charts (cached for 5 minutes, user-specific)
     try:
         # User's monthly parking activity
         monthly_activity = []
@@ -189,7 +222,7 @@ def get_user_parking_stats(current_user):
                 'reservations': reservations_count
             })
         
-        # Reverse to show chronological order (oldest to newest)
+        # Reverse to show chronological order
         monthly_activity.reverse()
         
         # User's spending over time
@@ -257,40 +290,47 @@ def get_user_parking_stats(current_user):
                     'usage_count': usage_count
                 })
         
-        # Sort lot usage by count (descending) to show most used first
+        # Sort lot usage by count (descending)
         lot_usage.sort(key=lambda x: x['usage_count'], reverse=True)
         
-        # Ensure minimum data for charts (add dummy data if no real data exists)
+        # Ensure minimum data for charts
         if not monthly_activity or all(item['reservations'] == 0 for item in monthly_activity):
-            # Add at least one data point to prevent blank charts
             current_month = datetime.utcnow().strftime('%Y-%m')
-            monthly_activity = [
-                {'month': current_month, 'reservations': 0}
-            ]
+            monthly_activity = [{'month': current_month, 'reservations': 0}]
         
         if not monthly_spending or all(item['spending'] == 0 for item in monthly_spending):
             current_month = datetime.utcnow().strftime('%Y-%m')
-            monthly_spending = [
-                {'month': current_month, 'spending': 0.0}
-            ]
+            monthly_spending = [{'month': current_month, 'spending': 0.0}]
         
         if not any(item['count'] > 0 for item in duration_preferences):
-            # Add at least one count to prevent blank pie chart
             duration_preferences[0]['count'] = 1
         
         if not lot_usage:
-            # Add dummy data if no parking lots used
-            lot_usage = [
-                {'lot_name': 'No parking history', 'usage_count': 0}
-            ]
+            lot_usage = [{'lot_name': 'No parking history', 'usage_count': 0}]
         
         return jsonify({
             'monthly_activity': monthly_activity,
             'monthly_spending': monthly_spending,
             'duration_preferences': duration_preferences,
-            'lot_usage': lot_usage
+            'lot_usage': lot_usage,
+            'cache_info': {
+                'cached_at': datetime.utcnow().isoformat(),
+                'ttl': 300
+            }
         }), 200
         
     except Exception as e:
         return jsonify({'error': 'Failed to fetch user parking statistics'}), 500
+
+@analytics_bp.route('/cache/clear', methods=['POST'])
+@token_required
+@admin_required
+def clear_analytics_cache(current_user):
+    # Clear analytics cache (admin only)
+    try:
+        from cache_manager import cache_manager
+        cache_manager.delete_cached_data('analytics_*')
+        return jsonify({'message': 'Analytics cache cleared successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': 'Failed to clear analytics cache'}), 500
 

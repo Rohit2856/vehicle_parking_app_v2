@@ -6,7 +6,7 @@ from auth_routes import auth_bp
 from dashboard_routes import dashboard_bp
 from admin_lot_routes import admin_lot_bp
 from user_routes import user_bp
-from analytics_routes import analytics_bp  
+from analytics_routes import analytics_bp
 from werkzeug.security import generate_password_hash
 
 def create_app():
@@ -19,18 +19,26 @@ def create_app():
         r"/auth/*": {"origins": "*"},
         r"/admin/*": {"origins": "*"},
         r"/user/*": {"origins": "*"},
-        r"/analytics/*": {"origins": "*"}  # Add analytics CORS
+        r"/analytics/*": {"origins": "*"}
     })
     
     # Initialize extensions
     db.init_app(app)
+    
+    # Test Redis connection
+    try:
+        from cache_manager import redis_client
+        redis_client.ping()
+        print("Redis connection successful")
+    except Exception as e:
+        print(f"Redis connection failed: {e}")
     
     # Register blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(admin_lot_bp)
     app.register_blueprint(user_bp)
-    app.register_blueprint(analytics_bp)  # Register analytics blueprint
+    app.register_blueprint(analytics_bp)
     
     # Root endpoint
     @app.route('/')
@@ -39,26 +47,37 @@ def create_app():
             'message': 'Vehicle Parking App - Authentication System',
             'version': '2.0',
             'status': 'operational',
+            'cache_enabled': True,
             'available_endpoints': {
                 'authentication': ['/auth/register', '/auth/login', '/auth/verify'],
                 'dashboards': ['/admin/dashboard', '/user/dashboard'],
                 'profile': ['/profile'],
                 'admin_management': ['/admin/lots', '/admin/spots', '/admin/users', '/admin/dashboard/summary'],
                 'user_parking': ['/user/lots', '/user/reserve', '/user/history', '/user/current-reservation'],
-                'analytics': ['/analytics/admin/parking-stats', '/analytics/admin/revenue-summary', '/analytics/user/parking-stats']  # Add analytics endpoints
+                'analytics': ['/analytics/admin/parking-stats', '/analytics/admin/revenue-summary', '/analytics/user/parking-stats'],
+                'cache_management': ['/admin/cache/clear', '/analytics/cache/clear']
             }
         })
     
     # Health check endpoint
     @app.route('/health')
     def health_check():
+        # Check Redis connection
+        redis_status = 'connected'
+        try:
+            from cache_manager import redis_client
+            redis_client.ping()
+        except:
+            redis_status = 'disconnected'
+        
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
             'authentication': 'enabled',
             'admin_management': 'enabled',
             'user_parking': 'enabled',
-            'analytics': 'enabled'  # Add analytics status
+            'analytics': 'enabled',
+            'redis_cache': redis_status
         })
     
     # Error handlers
@@ -106,5 +125,7 @@ if __name__ == '__main__':
     print("Authentication & Role-based Access System Ready")
     print("Admin Dashboard & Lot Management System Ready")
     print("User Dashboard & Reservation System Ready")
-    print("Analytics & Charts System Ready")  # Add analytics system status
+    print("Analytics & Charts System Ready")
+    print("Redis Caching System Ready")
     app.run(debug=True, host='0.0.0.0', port=5000)
+

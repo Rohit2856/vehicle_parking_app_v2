@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from auth_utils import token_required, admin_required
 from models import db, ParkingLot, ParkingSpot, ParkingSpotStatus, User, UserRole, Reservation
+from cache_manager import cache_response, invalidate_cache
 from datetime import datetime
 
 admin_lot_bp = Blueprint('admin_lot', __name__, url_prefix='/admin')
@@ -8,7 +9,7 @@ admin_lot_bp = Blueprint('admin_lot', __name__, url_prefix='/admin')
 class ParkingLotManager:
     @staticmethod
     def validate_lot_data(data):
-        """Validate parking lot creation/update data"""
+        # Validate parking lot creation/update data
         errors = []
         
         if not data.get('prime_location_name', '').strip():
@@ -27,7 +28,7 @@ class ParkingLotManager:
     
     @staticmethod
     def create_parking_spots(lot_id, num_spots):
-        """Automatically create parking spots for a lot"""
+        # Automatically create parking spots for a lot
         spots_created = []
         for i in range(num_spots):
             spot = ParkingSpot(
@@ -43,6 +44,7 @@ class ParkingLotManager:
 @admin_lot_bp.route('/lots', methods=['POST'])
 @token_required
 @admin_required
+@invalidate_cache(['lots_*', 'spots_*', 'analytics_*'])
 def create_parking_lot(current_user):
     # Create a new parking lot with automatic spot generation
     try:
@@ -96,8 +98,9 @@ def create_parking_lot(current_user):
 @admin_lot_bp.route('/lots', methods=['GET'])
 @token_required
 @admin_required
+@cache_response('lots_admin_all', ttl=600)
 def get_all_parking_lots(current_user):
-    # Get all parking lots with summary information
+    # Get all parking lots with summary information (cached)
     try:
         lots = ParkingLot.query.all()
         lots_data = []
@@ -126,7 +129,11 @@ def get_all_parking_lots(current_user):
         
         return jsonify({
             'lots': lots_data,
-            'total_lots': len(lots_data)
+            'total_lots': len(lots_data),
+            'cache_info': {
+                'cached_at': datetime.utcnow().isoformat(),
+                'ttl': 600
+            }
         }), 200
         
     except Exception as e:
@@ -135,8 +142,9 @@ def get_all_parking_lots(current_user):
 @admin_lot_bp.route('/lots/<int:lot_id>', methods=['GET'])
 @token_required
 @admin_required
+@cache_response('lots_admin_detail', ttl=300)
 def get_parking_lot_details(current_user, lot_id):
-    # Get detailed information about a specific parking lot
+    # Get detailed information about a specific parking lot (cached)
     try:
         lot = ParkingLot.query.get(lot_id)
         
@@ -176,6 +184,10 @@ def get_parking_lot_details(current_user, lot_id):
                 'total_spots': len(spots_data),
                 'occupied_spots': len([s for s in spots_data if s['status'] == 'O']),
                 'available_spots': len([s for s in spots_data if s['status'] == 'A'])
+            },
+            'cache_info': {
+                'cached_at': datetime.utcnow().isoformat(),
+                'ttl': 300
             }
         }
         
@@ -187,8 +199,9 @@ def get_parking_lot_details(current_user, lot_id):
 @admin_lot_bp.route('/lots/<int:lot_id>', methods=['PUT'])
 @token_required
 @admin_required
+@invalidate_cache(['lots_*', 'spots_*', 'analytics_*'])
 def update_parking_lot(current_user, lot_id):
-    # Update parking lot information and handle spot changes
+    # Update parking lot information (invalidates cache)
     try:
         lot = ParkingLot.query.get(lot_id)
         
@@ -256,8 +269,9 @@ def update_parking_lot(current_user, lot_id):
 @admin_lot_bp.route('/lots/<int:lot_id>', methods=['DELETE'])
 @token_required
 @admin_required
+@invalidate_cache(['lots_*', 'spots_*', 'analytics_*'])
 def delete_parking_lot(current_user, lot_id):
-    # Delete parking lot (only if all spots are empty)
+    # Delete parking lot (only if all spots are empty, invalidates cache)
     try:
         lot = ParkingLot.query.get(lot_id)
         
@@ -284,8 +298,9 @@ def delete_parking_lot(current_user, lot_id):
 @admin_lot_bp.route('/spots', methods=['GET'])
 @token_required
 @admin_required
+@cache_response('spots_admin_all', ttl=60)
 def get_all_parking_spots(current_user):
-    # Get all parking spots with detailed information
+    # Get all parking spots with detailed information (cached for 1 minute)
     try:
         spots = ParkingSpot.query.join(ParkingLot).all()
         spots_data = []
@@ -318,7 +333,11 @@ def get_all_parking_spots(current_user):
             'spots': spots_data,
             'total_spots': len(spots_data),
             'occupied_spots': len([s for s in spots_data if s['status'] == 'O']),
-            'available_spots': len([s for s in spots_data if s['status'] == 'A'])
+            'available_spots': len([s for s in spots_data if s['status'] == 'A']),
+            'cache_info': {
+                'cached_at': datetime.utcnow().isoformat(),
+                'ttl': 60
+            }
         }), 200
         
     except Exception as e:
@@ -327,8 +346,9 @@ def get_all_parking_spots(current_user):
 @admin_lot_bp.route('/users', methods=['GET'])
 @token_required
 @admin_required
+@cache_response('users_admin_all', ttl=300)
 def get_all_users_with_parking_info(current_user):
-    # Get all users with their parking usage details
+    # Get all users with their parking usage details (cached)
     try:
         users = User.query.filter_by(role=UserRole.user).all()
         users_data = []
@@ -368,7 +388,11 @@ def get_all_users_with_parking_info(current_user):
         return jsonify({
             'users': users_data,
             'total_users': len(users_data),
-            'users_currently_parked': len([u for u in users_data if u['is_currently_parked']])
+            'users_currently_parked': len([u for u in users_data if u['is_currently_parked']]),
+            'cache_info': {
+                'cached_at': datetime.utcnow().isoformat(),
+                'ttl': 300
+            }
         }), 200
         
     except Exception as e:
@@ -377,8 +401,9 @@ def get_all_users_with_parking_info(current_user):
 @admin_lot_bp.route('/dashboard/summary', methods=['GET'])
 @token_required
 @admin_required
+@cache_response('dashboard_admin_summary', ttl=120)
 def get_admin_dashboard_summary(current_user):
-    # Get comprehensive dashboard summary for admin
+    # Get comprehensive dashboard summary for admin (cached for 2 minutes)
     try:
         # System statistics
         total_users = User.query.filter_by(role=UserRole.user).count()
@@ -423,7 +448,11 @@ def get_admin_dashboard_summary(current_user):
                 'completed_reservations': len(completed_reservations),
                 'average_revenue_per_reservation': round(total_revenue / len(completed_reservations), 2) if completed_reservations else 0.0
             },
-            'recent_activity': recent_activity
+            'recent_activity': recent_activity,
+            'cache_info': {
+                'cached_at': datetime.utcnow().isoformat(),
+                'ttl': 120
+            }
         }
         
         return jsonify(dashboard_summary), 200
@@ -431,38 +460,14 @@ def get_admin_dashboard_summary(current_user):
     except Exception as e:
         return jsonify({'error': 'Failed to fetch dashboard summary'}), 500
 
-@admin_lot_bp.route('/reservations', methods=['GET'])
+@admin_lot_bp.route('/cache/clear', methods=['POST'])
 @token_required
 @admin_required
-def get_all_reservations(current_user):
-    # Return all users' reservation records and cost
+def clear_cache(current_user):
+    # Clear all cache (admin only)
     try:
-        reservations = Reservation.query.order_by(Reservation.parking_timestamp.desc()).all()
-        history = []
-        total_cost = 0
-        for r in reservations:
-            duration_hours = None
-            if r.leaving_timestamp and r.parking_timestamp:
-                duration_seconds = (r.leaving_timestamp - r.parking_timestamp).total_seconds()
-                duration_hours = round(duration_seconds / 3600, 2)
-            if r.parking_cost:
-                total_cost += r.parking_cost
-            history.append({
-                'reservation_id': r.id,
-                'username': r.user.username,
-                'spot_id': r.spot_id,
-                'lot_id': r.spot.lot_id,
-                'lot_name': r.spot.lot.prime_location_name,
-                'parking_timestamp': r.parking_timestamp.isoformat() if r.parking_timestamp else None,
-                'leaving_timestamp': r.leaving_timestamp.isoformat() if r.leaving_timestamp else None,
-                'duration_hours': duration_hours,
-                'parking_cost': r.parking_cost,
-                'status': 'Active' if not r.leaving_timestamp else 'Completed'
-            })
-        return jsonify({
-            'reservations': history,
-            'total_reservations': len(history),
-            'total_revenue': round(total_cost, 2)
-        }), 200
+        from cache_manager import cache_manager
+        cache_manager.flush_cache()
+        return jsonify({'message': 'Cache cleared successfully'}), 200
     except Exception as e:
-        return jsonify({'error': 'Failed to fetch reservation records'}), 500
+        return jsonify({'error': 'Failed to clear cache'}), 500
