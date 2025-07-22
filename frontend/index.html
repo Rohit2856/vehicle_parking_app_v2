@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Parking App - Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="container-fluid vh-100">
+            <div class="row h-100">
+                <div class="col-md-6 d-flex align-items-center justify-content-center bg-primary">
+                    <div class="text-white text-center">
+                        <h1> Vehicle Parking App</h1>
+                        <p class="lead">Smart Parking Management System</p>
+                        <p>Manage your parking spaces efficiently</p>
+                    </div>
+                </div>
+                <div class="col-md-6 d-flex align-items-center justify-content-center">
+                    <div class="card shadow-lg" style="width: 400px;">
+                        <div class="card-body">
+                            <h3 class="card-title text-center mb-4">Login</h3>
+                            
+                            <!-- Login Form -->
+                            <form @submit.prevent="login" v-if="!isLoading">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        id="username"
+                                        v-model="loginForm.username" 
+                                        required
+                                        placeholder="Enter username"
+                                    >
+                                </div>
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Password</label>
+                                    <input 
+                                        type="password" 
+                                        class="form-control" 
+                                        id="password"
+                                        v-model="loginForm.password" 
+                                        required
+                                        placeholder="Enter password"
+                                    >
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Login</button>
+                            </form>
+
+                            <!-- Loading State -->
+                            <div v-if="isLoading" class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Logging in...</p>
+                            </div>
+                            
+                            <!-- Error Message -->
+                            <div v-if="error" class="alert alert-danger mt-3">
+                                {{ error }}
+                            </div>
+                            
+                            <!-- Registration Link -->
+                            <div class="text-center mt-3">
+                                <p>Don't have an account? 
+                                    <a href="#" @click="showRegister = true">Register here</a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Modal -->
+        <div class="modal fade" :class="{show: showRegister}" :style="{display: showRegister ? 'block' : 'none'}" v-if="showRegister">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">User Registration</h5>
+                        <button type="button" class="btn-close" @click="showRegister = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="register">
+                            <div class="row">
+                                <!-- Basic Information -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Full Name *</label>
+                                    <input type="text" class="form-control" v-model="registerForm.full_name" required 
+                                        placeholder="Enter your full name">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Username *</label>
+                                    <input type="text" class="form-control" v-model="registerForm.username" required 
+                                        placeholder="Choose a username">
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Password *</label>
+                                    <input type="password" class="form-control" v-model="registerForm.password" required 
+                                        placeholder="Enter password">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Email Address *</label>
+                                    <input type="email" class="form-control" v-model="registerForm.email" required 
+                                        placeholder="your.email@gmail.com">
+                                    <div class="form-text text-info">
+                                        <i class="fas fa-info-circle"></i> We recommend Gmail for Google Chat reminders
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Contact Information -->
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Mobile Number *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">+91</span>
+                                        <input type="tel" class="form-control" v-model="registerForm.mobile_number" 
+                                            required pattern="[6-9][0-9]{9}" maxlength="10" 
+                                            placeholder="9876543210">
+                                    </div>
+                                    <div class="form-text">10-digit Indian mobile number</div>
+                                </div>
+
+                                <!-- Vehicle Information -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Vehicle Type *</label>
+                                    <select class="form-select" v-model="registerForm.vehicle_type" required>
+                                        <option value="">Select Vehicle Type</option>
+                                        <option value="Car">Car</option>
+                                        <option value="EV">Electric Vehicle</option>
+                                        <option value="SUV">SUV</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Vehicle Number Plate *</label>
+                                    <input type="text" class="form-control text-uppercase" v-model="registerForm.vehicle_number" 
+                                        required placeholder="DL01AB1234" maxlength="15" style="text-transform: uppercase;">
+                                    <div class="form-text">Format: DL01AB1234</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Vehicle Brand/Model (Optional)</label>
+                                    <input type="text" class="form-control" v-model="registerForm.vehicle_brand" 
+                                        placeholder="e.g., Honda City, Royal Enfield">
+                                </div>
+                            </div>
+                            
+                            <!-- Address -->
+                            <div class="mb-3">
+                                <label class="form-label">Home Address (Optional)</label>
+                                <textarea class="form-control" v-model="registerForm.home_address" rows="2" 
+                                        placeholder="Enter your home address for better service"></textarea>
+                            </div>
+                            
+                            <!-- Terms and Submit -->
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" v-model="registerForm.agree_terms" 
+                                        id="agreeTerms" required>
+                                    <label class="form-check-label" for="agreeTerms">
+                                        I agree to receive parking reminders via email and Google Chat *
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div v-if="registerError" class="alert alert-danger">
+                                {{ registerError }}
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary" :disabled="registerLoading">
+                                    <span v-if="registerLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                    {{ registerLoading ? 'Creating Account...' : 'Create Account' }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <script src="login.js"></script>
+</body>
+</html>

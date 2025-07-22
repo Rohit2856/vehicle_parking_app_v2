@@ -13,7 +13,7 @@
     <div id="app">
         <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
             <div class="container">
-                <a class="navbar-brand" href="#">🚗 Vehicle Parking App</a>
+                <a class="navbar-brand" href="#"> Vehicle Parking App</a>
                 <div class="navbar-nav ms-auto">
                     <span class="navbar-text" v-if="user">
                         Welcome, {{ user.username }}
@@ -24,36 +24,6 @@
                 </div>
             </div>
         </nav>
-
-        <!-- Login Form -->
-        <div class="container mt-4" v-if="!user">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h4>User Login</h4>
-                        </div>
-                        <div class="card-body">
-                            <form @submit.prevent="login">
-                                <div class="mb-3">
-                                    <label class="form-label">Username</label>
-                                    <input type="text" class="form-control" v-model="loginForm.username" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Password</label>
-                                    <input type="password" class="form-control" v-model="loginForm.password" required>
-                                </div>
-                                <button type="submit" class="btn btn-primary">Login</button>
-                                <button type="button" class="btn btn-link" @click="showRegister = true">Register</button>
-                            </form>
-                            <div class="alert alert-danger mt-3" v-if="error">
-                                {{ error }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Registration Form -->
         <div class="modal fade" :class="{show: showRegister}" :style="{display: showRegister ? 'block' : 'none'}" v-if="showRegister">
@@ -84,11 +54,11 @@
         <div class="container mt-4" v-if="user && user.role === 'user'">
             <!-- Current Reservation Alert -->
             <div class="alert alert-info" v-if="currentReservation">
-                <h5>🚗 Currently Parked</h5>
+                <h5> Currently Parked</h5>
                 <p><strong>Location:</strong> {{ currentReservation.lot_name }}</p>
                 <p><strong>Spot ID:</strong> {{ currentReservation.spot_id }}</p>
                 <p><strong>Duration:</strong> {{ currentReservation.current_duration_hours }} hours</p>
-                <p><strong>Estimated Cost:</strong> ${{ currentReservation.estimated_cost }}</p>
+                <p><strong>Estimated Cost:</strong> ₹{{ currentReservation.estimated_cost }}</p>
                 <button class="btn btn-warning" @click="releaseSpot(currentReservation.reservation_id)">
                     Release Spot
                 </button>
@@ -138,7 +108,7 @@
                             <div class="card bg-info text-white">
                                 <div class="card-body">
                                     <h5>Total Spent</h5>
-                                    <h3>${{ dashboardData.parking_stats.total_amount_spent }}</h3>
+                                    <h3>₹{{ dashboardData.parking_stats.total_amount_spent }}</h3>
                                 </div>
                             </div>
                         </div>
@@ -153,7 +123,6 @@
                     </div>
                 </div>
 
-                <!-- Available Lots Tab -->
                 <div v-if="activeTab === 'lots'">
                     <h4>Available Parking Lots</h4>
                     <div class="row">
@@ -162,7 +131,7 @@
                                 <div class="card-body">
                                     <h5 class="card-title">{{ lot.prime_location_name }}</h5>
                                     <p class="card-text">
-                                        <strong>Price:</strong> ${{ lot.price }}/hour<br>
+                                        <strong>Price:</strong> ₹{{ lot.price }}/hour<br>
                                         <strong>Address:</strong> {{ lot.address }}<br>
                                         <strong>Available Spots:</strong> {{ lot.available_spots }}/{{ lot.number_of_spots }}
                                     </p>
@@ -178,8 +147,20 @@
                 </div>
 
                 <!-- History Tab -->
-                <div v-if="activeTab === 'history'">
-                    <h4>Parking History</h4>
+                <div v-if="activeTab === 'history'" class="tab-content">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4>Parking History</h4>
+                        <div>
+                            <button class="btn btn-primary me-2" @click="exportMyData">
+                                <i class="fas fa-download"></i>
+                                Export My Data (CSV)
+                            </button>
+                            <button class="btn btn-success" @click="requestMonthlyReport">
+                                <i class="fas fa-file-pdf"></i>
+                                Request Monthly Report
+                            </button>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
@@ -200,7 +181,7 @@
                                     <td>{{ formatDateTime(record.parking_timestamp) }}</td>
                                     <td>{{ record.leaving_timestamp ? formatDateTime(record.leaving_timestamp) : '-' }}</td>
                                     <td>{{ record.duration_hours ? record.duration_hours + ' hours' : '-' }}</td>
-                                    <td>{{ record.parking_cost ? '$' + record.parking_cost : '-' }}</td>
+                                    <td>{{ record.parking_cost ? '₹' + record.parking_cost : '-' }}</td>
                                     <td>
                                         <span class="badge" :class="record.status === 'Active' ? 'bg-success' : 'bg-secondary'">
                                             {{ record.status }}

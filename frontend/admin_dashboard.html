@@ -13,7 +13,7 @@
     <div id="app">
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container">
-                <a class="navbar-brand" href="#">🚗 Vehicle Parking App</a>
+                <a class="navbar-brand" href="#"> Vehicle Parking App</a>
                 <div class="navbar-nav ms-auto">
                     <span class="navbar-text" v-if="user">
                         Welcome, {{ user.username }} ({{ user.role }})
@@ -24,35 +24,6 @@
                 </div>
             </div>
         </nav>
-
-        <!-- Login Form -->
-        <div class="container mt-4" v-if="!user">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h4>Admin Login</h4>
-                        </div>
-                        <div class="card-body">
-                            <form @submit.prevent="login">
-                                <div class="mb-3">
-                                    <label class="form-label">Username</label>
-                                    <input type="text" class="form-control" v-model="loginForm.username" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Password</label>
-                                    <input type="password" class="form-control" v-model="loginForm.password" required>
-                                </div>
-                                <button type="submit" class="btn btn-primary">Login</button>
-                            </form>
-                            <div class="alert alert-danger mt-3" v-if="error">
-                                {{ error }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Admin Dashboard -->
         <div class="container mt-4" v-if="user && user.role === 'admin'">
@@ -120,6 +91,34 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="row mb-4">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6>Admin Actions</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <button class="btn btn-success me-2" @click="triggerCSVExport('admin')" :disabled="exportStatus === 'processing'">
+                                                    <i class="fas fa-download"></i>
+                                                    <span v-if="exportStatus === 'processing'">Exporting...</span>
+                                                    <span v-else>Export All Data (CSV)</span>
+                                                </button>
+                                                
+                                                <button class="btn btn-info me-2" @click="requestMonthlyReports">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                    Generate Monthly Reports
+                                                </button>
+                                                
+                                                <div v-if="exportStatus === 'processing'" class="mt-2">
+                                                    <div class="spinner-border spinner-border-sm text-success" role="status">
+                                                        <span class="visually-hidden">Processing...</span>
+                                                    </div>
+                                                    <span class="ms-2">Processing CSV export...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -150,7 +149,7 @@
                                         <tr v-for="lot in parkingLots" :key="lot.id">
                                             <td>{{ lot.id }}</td>
                                             <td>{{ lot.prime_location_name }}</td>
-                                            <td>${{ lot.price }}</td>
+                                            <td>₹{{ lot.price }}</td>
                                             <td>{{ lot.spot_summary.total_spots }}</td>
                                             <td>{{ lot.spot_summary.occupied_spots }}</td>
                                             <td>{{ lot.spot_summary.available_spots }}</td>
@@ -232,7 +231,7 @@
                                                     {{ user.is_currently_parked ? 'Yes' : 'No' }}
                                                 </span>
                                             </td>
-                                            <td>${{ user.parking_stats.total_amount_spent }}</td>
+                                            <td>₹{{ user.parking_stats.total_amount_spent }}</td>
                                             <td>
                                                 <span v-if="user.current_parking.length > 0">
                                                     Spot {{ user.current_parking[0].spot_id }}
@@ -303,7 +302,7 @@
                                     <div class="card bg-success text-white">
                                         <div class="card-body">
                                             <h5>Total Revenue</h5>
-                                            <h3>${{ revenueSummary.total_revenue }}</h3>
+                                            <h3>₹{{ revenueSummary.total_revenue }}</h3>
                                         </div>
                                     </div>
                                 </div>
@@ -311,7 +310,7 @@
                                     <div class="card bg-primary text-white">
                                         <div class="card-body">
                                             <h5>Today's Revenue</h5>
-                                            <h3>${{ revenueSummary.today_revenue }}</h3>
+                                            <h3>₹{{ revenueSummary.today_revenue }}</h3>
                                         </div>
                                     </div>
                                 </div>
@@ -319,7 +318,7 @@
                                     <div class="card bg-info text-white">
                                         <div class="card-body">
                                             <h5>This Month</h5>
-                                            <h3>${{ revenueSummary.month_revenue }}</h3>
+                                            <h3>₹{{ revenueSummary.month_revenue }}</h3>
                                         </div>
                                     </div>
                                 </div>
@@ -327,7 +326,7 @@
                                     <div class="card bg-warning text-white">
                                         <div class="card-body">
                                             <h5>Average Revenue</h5>
-                                            <h3>${{ revenueSummary.average_revenue }}</h3>
+                                            <h3>₹{{ revenueSummary.average_revenue }}</h3>
                                         </div>
                                     </div>
                                 </div>
@@ -390,7 +389,7 @@
                             <div class="col-md-6">
                                 <h6>Basic Information</h6>
                                 <p><strong>Location:</strong> {{ selectedLotDetails.prime_location_name }}</p>
-                                <p><strong>Price:</strong> ${{ selectedLotDetails.price }}/hour</p>
+                                <p><strong>Price:</strong> ₹{{ selectedLotDetails.price }}/hour</p>
                                 <p><strong>Address:</strong> {{ selectedLotDetails.address || 'N/A' }}</p>
                                 <p><strong>Pin Code:</strong> {{ selectedLotDetails.pin_code || 'N/A' }}</p>
                                 <p><strong>Total Spots:</strong> {{ selectedLotDetails.number_of_spots }}</p>

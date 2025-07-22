@@ -8,10 +8,6 @@ createApp({
             activeTab: 'dashboard',
             error: '',
             showRegister: false,
-            loginForm: {
-                username: '',
-                password: ''
-            },
             registerForm: {
                 username: '',
                 password: ''
@@ -25,7 +21,8 @@ createApp({
                 monthlyActivity: null,
                 monthlySpending: null,
                 durationPreferences: null,
-                lotUsage: null
+                lotUsage: null,
+            isLoading: false
             }
         }
     },
@@ -35,26 +32,9 @@ createApp({
         }
     },
     methods: {
-        async login() {
-            try {
-                const response = await axios.post('http://localhost:5000/auth/login', this.loginForm);
-                this.token = response.data.access_token;
-                this.user = response.data.user;
-                localStorage.setItem('token', this.token);
-                this.error = '';
-                
-                if (this.user.role === 'user') {
-                    this.fetchDashboard();
-                    this.fetchCurrentReservation();
-                }
-            } catch (error) {
-                this.error = error.response?.data?.error || 'Login failed';
-            }
-        },
-        
         async register() {
             try {
-                const response = await axios.post('http://localhost:5000/auth/register', this.registerForm);
+                const response = await axios.post('/auth/register', this.registerForm);
                 this.showRegister = false;
                 this.registerForm = { username: '', password: '' };
                 alert('Registration successful! Please login.');
@@ -65,7 +45,7 @@ createApp({
         
         async verifyToken() {
             try {
-                const response = await axios.get('http://localhost:5000/auth/verify', {
+                const response = await axios.get('/auth/verify', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.user = response.data.user;
@@ -83,11 +63,12 @@ createApp({
             this.user = null;
             this.token = null;
             localStorage.removeItem('token');
+            window.location.href = 'index.html'
         },
         
         async fetchDashboard() {
             try {
-                const response = await axios.get('http://localhost:5000/user/dashboard', {
+                const response = await axios.get('/user/dashboard', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.dashboardData = response.data;
@@ -98,7 +79,7 @@ createApp({
         
         async fetchAvailableLots() {
             try {
-                const response = await axios.get('http://localhost:5000/user/lots', {
+                const response = await axios.get('/user/lots', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.availableLots = response.data.available_lots;
@@ -109,7 +90,7 @@ createApp({
         
         async fetchHistory() {
             try {
-                const response = await axios.get('http://localhost:5000/user/history', {
+                const response = await axios.get('/user/history', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.parkingHistory = response.data.history;
@@ -120,7 +101,7 @@ createApp({
         
         async fetchCurrentReservation() {
             try {
-                const response = await axios.get('http://localhost:5000/user/current-reservation', {
+                const response = await axios.get('/user/current-reservation', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.currentReservation = response.data.active_reservation;
@@ -131,7 +112,7 @@ createApp({
         
         async reserveSpot(lotId) {
             try {
-                const response = await axios.post('http://localhost:5000/user/reserve', 
+                const response = await axios.post('/user/reserve', 
                     { lot_id: lotId }, 
                     { headers: { Authorization: `Bearer ${this.token}` } }
                 );
@@ -148,11 +129,11 @@ createApp({
         async releaseSpot(reservationId) {
             if (confirm('Are you sure you want to release this parking spot?')) {
                 try {
-                    const response = await axios.post(`http://localhost:5000/user/release/${reservationId}`, {}, {
+                    const response = await axios.post(`/user/release/${reservationId}`, {}, {
                         headers: { Authorization: `Bearer ${this.token}` }
                     });
                     
-                    alert(`Spot released successfully! Cost: $${response.data.parking_cost}`);
+                    alert(`Spot released successfully! Cost: ₹${response.data.parking_cost}`);
                     this.currentReservation = null;
                     this.fetchDashboard();
                     this.fetchHistory();
@@ -164,14 +145,14 @@ createApp({
         
         async fetchUserAnalytics() {
             try {
-                const response = await axios.get('http://localhost:5000/analytics/user/parking-stats', {
+                const response = await axios.get('/analytics/user/parking-stats', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 
                 console.log('Analytics response:', response.data);
                 this.userAnalytics = response.data;
-                
-                // Wait for Vue to update the DOM
+
+                // Waiting for Vue to update the DOM
                 await this.$nextTick();
                 
                 // Additional delay for canvas elements to be fully rendered
@@ -183,26 +164,72 @@ createApp({
                 console.error('Failed to fetch user analytics:', error);
             }
         },
-
-        createUserCharts() {
-            if (!this.userAnalytics) {
-                console.log('No analytics data available');
-                return;
+        async exportMyData() {
+            try {
+                const response = await axios.post('/jobs/trigger-csv-export', {
+                    user_id: this.user.id,
+                    export_type: 'user'
+                }, {
+                    headers: { Authorization: `Bearer ${this.token}` }
+                });
+                
+                // Poll for completion and download
+                this.pollForDownload(response.data.job_id);
+                
+            } catch (error) {
+                alert('Export failed: ' + (error.response?.data?.error || 'Unknown error'));
             }
+        },
+
+        async pollForDownload(jobId) {
+            const checkStatus = async () => {
+                try {
+                    const statusResponse = await axios.get(`/jobs/status/${jobId}`, {
+                        headers: { Authorization: `Bearer ${this.token}` }
+                    });
+                    
+                    if (statusResponse.data.state === 'SUCCESS') {
+                        // Download the file
+                        const downloadUrl = `/export/csv/download/${jobId}?user_id=${this.user.id}&export_type=user`;
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.download = 'my_parking_history.csv';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    } else if (statusResponse.data.state === 'FAILURE') {
+                        alert('Export failed');
+                    } else {
+                        setTimeout(checkStatus, 2000);
+                    }
+                } catch (error) {
+                    console.error('Status check failed:', error);
+                }
+            };
             
-            // Add delay to ensure DOM is ready
+            checkStatus();
+        },
+
+        async createUserCharts() {
+            if (!this.userAnalytics) return;
+
+            // Waiting for Vue DOM updates
+            await this.$nextTick();
+            
+            // Additional delay to ensure canvas elements are fully rendered
             setTimeout(() => {
                 this.createUserMonthlyActivityChart();
                 this.createUserMonthlySpendingChart();
                 this.createUserDurationPreferencesChart();
                 this.createUserLotUsageChart();
-            }, 100);
+            }, 500); 
         },
 
         createUserMonthlyActivityChart() {
             const canvas = document.getElementById('userMonthlyActivityChart');
             if (!canvas) {
                 console.error('Canvas userMonthlyActivityChart not found');
+                setTimeout(() => this.createUserMonthlyActivityChart(), 100);
                 return;
             }
             
@@ -254,7 +281,7 @@ createApp({
                 data: {
                     labels: this.userAnalytics.monthly_spending.map(m => m.month),
                     datasets: [{
-                        label: 'Monthly Spending ($)',
+                        label: 'Monthly Spending (₹)',
                         data: this.userAnalytics.monthly_spending.map(m => m.spending),
                         backgroundColor: 'rgba(255, 99, 132, 0.5)',
                         borderColor: 'rgba(255, 99, 132, 1)',

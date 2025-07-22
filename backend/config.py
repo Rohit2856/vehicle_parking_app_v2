@@ -1,5 +1,13 @@
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
+import pytz
+# IST Timezone Configuration
+TIMEZONE = 'Asia/Kolkata'
+IST_TZ = pytz.timezone('Asia/Kolkata')
+
+# Helper function for IST time
+def get_ist_now():
+    return datetime.now(pytz.timezone('Asia/Kolkata'))
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'vp-mad2-secret-key-change-in-production'
@@ -20,3 +28,17 @@ class Config:
     CACHE_LOTS_TTL = 600     # 10 minutes for parking lots
     CACHE_SPOTS_TTL = 60     # 1 minute for spot availability
     CACHE_ANALYTICS_TTL = 900 # 15 minutes for analytics data
+
+    # Email Configuration
+    MAIL_SERVER = 'smtp.gmail.com'
+    MAIL_PORT = 587
+    MAIL_USE_TLS = True
+    MAIL_USERNAME = '23f1000362@ds.study.iitm.ac.in'  
+    MAIL_PASSWORD = 'pbss jvmv obmo dmik'    
+    MAIL_DEFAULT_SENDER = '23f1000362@ds.study.iitm.ac.in'
+
+    # Google Chat Configuration
+    GCHAT_WEBHOOK_URL = 'https://chat.googleapis.com/v1/spaces/AAQAOmFxSN8/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=bB8u5rlM_ubqV4EhWTRFjTsnKUECSWAnarWuK4SX_bc'
+    GCHAT_NOTIFICATIONS_ENABLED = True
+
+

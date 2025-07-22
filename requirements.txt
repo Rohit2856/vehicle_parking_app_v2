@@ -1,8 +1,12 @@
 flask
 sqlalchemy
 Flask-SQLAlchemy
-Flask-CORS
+pytz
 PyJWT
 python-dotenv
 redis
 requests
+celery
+Flask-Mail
+pandas
+reportlab

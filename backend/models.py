@@ -21,11 +21,18 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.Enum(UserRole), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True) 
+    full_name = db.Column(db.String(100), nullable=True)
+    mobile_number = db.Column(db.String(15), unique=True, nullable=True)
+    vehicle_type = db.Column(db.String(50), nullable=True)
+    vehicle_number = db.Column(db.String(20), unique=True, nullable=True)
+    vehicle_brand = db.Column(db.String(100), nullable=True)
+    home_address = db.Column(db.Text, nullable=True)
     reservations = db.relationship('Reservation', back_populates='user')
-    
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
-    
+
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
@@ -77,13 +84,19 @@ def create_database():
         admin_username = "admin"
         admin_password = "admin123" 
         admin_password_hash = generate_password_hash(admin_password)
-
         existing_admin = User.query.filter_by(username=admin_username, role=UserRole.admin).first()
-        if not existing_admin:
+        if not admin_user:
             admin_user = User(
-                username=admin_username,
-                password_hash=admin_password_hash,
-                role=UserRole.admin
+                username='admin',
+                password_hash=generate_password_hash('admin123'),
+                role=UserRole.admin,
+                email='admin@vehicleparkingapp.com',
+                full_name='System Administrator',
+                mobile_number='9999999999',
+                vehicle_type='Admin',
+                vehicle_number='ADMIN001',
+                vehicle_brand='System Vehicle',
+                home_address='System Address'
             )
             db.session.add(admin_user)
             db.session.commit()

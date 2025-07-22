@@ -33,39 +33,55 @@ class AuthValidator:
         return True, ""
 
 @auth_bp.route('/register', methods=['POST'])
-def register_user():
-    # Register new user (admin registration blocked)
+def register():
     try:
         data = request.get_json()
         
-        if not data:
-            return jsonify({'error': 'Request body required'}), 400
+        # Validate required fields
+        required_fields = ['username', 'password', 'email', 'full_name', 'mobile_number', 'vehicle_type', 'vehicle_number']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'{field.replace("_", " ").title()} is required'}), 400
         
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
+        # Email validation
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_pattern, data['email']):
+            return jsonify({'error': 'Invalid email format'}), 400
         
-        # Validate input
-        is_valid_username, username_error = AuthValidator.validate_username(username)
-        if not is_valid_username:
-            return jsonify({'error': username_error}), 400
+        # Mobile validation 
+        mobile_pattern = r'^[6-9]\d{9}$'
+        if not re.match(mobile_pattern, data['mobile_number']):
+            return jsonify({'error': 'Invalid mobile number. Use 10-digit Indian mobile number'}), 400
         
-        is_valid_password, password_error = AuthValidator.validate_password(password)
-        if not is_valid_password:
-            return jsonify({'error': password_error}), 400
+        # Vehicle number validation
+        vehicle_pattern = r'^[A-Z]{2}\d{2}[A-Z]{1,2}\d{4}$'
+        if not re.match(vehicle_pattern, data['vehicle_number'].upper()):
+            return jsonify({'error': 'Invalid vehicle number format. Use format like DL01AB1234'}), 400
         
-        # Block admin registration
-        if username.lower() == 'admin':
-            return jsonify({'error': 'Admin registration not permitted'}), 403
+        # Check if user already exists
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({'error': 'Username already exists'}), 400
         
-        # Check if username already exists
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            return jsonify({'error': 'Username already taken'}), 409
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({'error': 'Email already registered'}), 400
+        
+        if User.query.filter_by(mobile_number=data['mobile_number']).first():
+            return jsonify({'error': 'Mobile number already registered'}), 400
+        
+        if User.query.filter_by(vehicle_number=data['vehicle_number'].upper()).first():
+            return jsonify({'error': 'Vehicle number already registered'}), 400
         
         # Create new user
         new_user = User(
-            username=username,
-            password_hash=generate_password_hash(password),
+            username=data['username'],
+            password_hash=generate_password_hash(data['password']),
+            email=data['email'],
+            full_name=data['full_name'],
+            mobile_number=data['mobile_number'],
+            vehicle_type=data['vehicle_type'],
+            vehicle_number=data['vehicle_number'].upper(),
+            vehicle_brand=data.get('vehicle_brand'),
+            home_address=data.get('home_address'),
             role=UserRole.user
         )
         
@@ -73,17 +89,20 @@ def register_user():
         db.session.commit()
         
         return jsonify({
-            'message': 'User registration successful',
+            'message': 'User registered successfully',
             'user': {
                 'id': new_user.id,
                 'username': new_user.username,
-                'role': new_user.role.value
+                'email': new_user.email,
+                'full_name': new_user.full_name,
+                'vehicle_type': new_user.vehicle_type,
+                'vehicle_number': new_user.vehicle_number
             }
         }), 201
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Registration failed due to server error'}), 500
+        return jsonify({'error': 'Registration failed'}), 500
 
 @auth_bp.route('/login', methods=['POST'])
 def login():

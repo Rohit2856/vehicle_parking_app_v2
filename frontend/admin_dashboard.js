@@ -7,10 +7,6 @@ createApp({
             token: localStorage.getItem('token'),
             activeTab: 'overview',
             error: '',
-            loginForm: {
-                username: '',
-                password: ''
-            },
             dashboardSummary: null,
             parkingLots: [],
             parkingSpots: [],
@@ -41,7 +37,10 @@ createApp({
                 lotOccupancy: null,
                 monthlyRevenue: null,
                 durationDistribution: null
-            }
+            },
+            exportJobId: null,
+            exportStatus: '',
+            isLoading: false
         }
     },
     mounted() {
@@ -50,25 +49,9 @@ createApp({
         }
     },
     methods: {
-        async login() {
-            try {
-                const response = await axios.post('http://localhost:5000/auth/login', this.loginForm);
-                this.token = response.data.access_token;
-                this.user = response.data.user;
-                localStorage.setItem('token', this.token);
-                this.error = '';
-                
-                if (this.user.role === 'admin') {
-                    this.fetchDashboardSummary();
-                }
-            } catch (error) {
-                this.error = error.response?.data?.error || 'Login failed';
-            }
-        },
-        
         async verifyToken() {
             try {
-                const response = await axios.get('http://localhost:5000/auth/verify', {
+                const response = await axios.get('/auth/verify', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.user = response.data.user;
@@ -85,11 +68,12 @@ createApp({
             this.user = null;
             this.token = null;
             localStorage.removeItem('token');
+            window.location.href = 'index.html'
         },
         
         async fetchDashboardSummary() {
             try {
-                const response = await axios.get('http://localhost:5000/admin/dashboard/summary', {
+                const response = await axios.get('/admin/dashboard/summary', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.dashboardSummary = response.data;
@@ -100,7 +84,7 @@ createApp({
         
         async fetchParkingLots() {
             try {
-                const response = await axios.get('http://localhost:5000/admin/lots', {
+                const response = await axios.get('/admin/lots', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.parkingLots = response.data.lots;
@@ -111,7 +95,7 @@ createApp({
         
         async fetchParkingSpots() {
             try {
-                const response = await axios.get('http://localhost:5000/admin/spots', {
+                const response = await axios.get('/admin/spots', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.parkingSpots = response.data.spots;
@@ -122,7 +106,7 @@ createApp({
         
         async fetchUsers() {
             try {
-                const response = await axios.get('http://localhost:5000/admin/users', {
+                const response = await axios.get('/admin/users', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.users = response.data.users;
@@ -133,7 +117,7 @@ createApp({
         
         async createParkingLot() {
             try {
-                const response = await axios.post('http://localhost:5000/admin/lots', this.newLot, {
+                const response = await axios.post('/admin/lots', this.newLot, {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 
@@ -154,7 +138,7 @@ createApp({
         
         async viewLotDetails(lotId) {
             try {
-                const response = await axios.get(`http://localhost:5000/admin/lots/${lotId}`, {
+                const response = await axios.get(`/admin/lots/${lotId}`, {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.selectedLotDetails = response.data.lot_details;
@@ -165,7 +149,6 @@ createApp({
         },
         
         editLot(lot) {
-            // Copy lot data to edit form
             this.editLotData = {
                 id: lot.id,
                 prime_location_name: lot.prime_location_name,
@@ -179,7 +162,7 @@ createApp({
         
         async updateParkingLot() {
             try {
-                const response = await axios.put(`http://localhost:5000/admin/lots/${this.editLotData.id}`, 
+                const response = await axios.put(`/admin/lots/${this.editLotData.id}`, 
                     this.editLotData, {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
@@ -195,7 +178,7 @@ createApp({
         async deleteLot(lotId) {
             if (confirm('Are you sure you want to delete this parking lot?')) {
                 try {
-                    await axios.delete(`http://localhost:5000/admin/lots/${lotId}`, {
+                    await axios.delete(`/admin/lots/${lotId}`, {
                         headers: { Authorization: `Bearer ${this.token}` }
                     });
                     this.fetchParkingLots();
@@ -209,16 +192,16 @@ createApp({
         async fetchAnalytics() {
             try {
                 // Fetch parking statistics
-                const analyticsResponse = await axios.get('http://localhost:5000/analytics/admin/parking-stats', {
+                const analyticsResponse = await axios.get('/analytics/admin/parking-stats', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 
                 // Fetch revenue summary
-                const revenueResponse = await axios.get('http://localhost:5000/analytics/admin/revenue-summary', {
+                const revenueResponse = await axios.get('/analytics/admin/revenue-summary', {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 
-                // Ensure data exists before assignment
+                // To ensure data exists before assignment
                 this.analyticsData = analyticsResponse.data || {};
                 this.revenueSummary = revenueResponse.data || {};
                 
@@ -226,17 +209,17 @@ createApp({
                 console.log('Analytics Data:', this.analyticsData);
                 console.log('Revenue Data:', this.revenueSummary);
                 
-                // Wait for DOM update then create charts
+                // Waiting for DOM update then create charts
                 await this.$nextTick();
                 
-                // Add delay to ensure canvas elements are rendered
+                // Adding delay to ensure canvas elements are rendered
                 setTimeout(() => {
                     this.createCharts();
                 }, 300);
                 
             } catch (error) {
                 console.error('Failed to fetch analytics:', error);
-                // Set default empty data structure
+                // Set to default empty data structure
                 this.analyticsData = {
                     daily_reservations: [],
                     lot_occupancy: [],
@@ -252,7 +235,68 @@ createApp({
             }
         },
 
-        
+        async triggerCSVExport(exportType = 'admin') {
+            try {
+                const response = await axios.post('/jobs/trigger-csv-export', {
+                    user_id: this.user.id,
+                    export_type: exportType
+                }, {
+                    headers: { Authorization: `Bearer ${this.token}` }
+                });
+                
+                this.exportJobId = response.data.job_id;
+                this.exportStatus = 'processing';
+                
+                // Checking job status periodically
+                this.checkExportStatus();
+                
+            } catch (error) {
+                alert('Failed to start CSV export: ' + (error.response?.data?.error || 'Unknown error'));
+            }
+        },
+
+        async checkExportStatus() {
+            if (!this.exportJobId) return;
+            
+            try {
+                const response = await axios.get(`/jobs/status/${this.exportJobId}`, {
+                    headers: { Authorization: `Bearer ${this.token}` }
+                });
+                
+                this.exportStatus = response.data.state;
+                
+                if (response.data.state === 'SUCCESS') {
+                    // Download ready
+                    this.downloadCSV();
+                } else if (response.data.state === 'FAILURE') {
+                    alert('Export failed: ' + response.data.error);
+                } else {
+                    setTimeout(() => this.checkExportStatus(), 2000);
+                }
+                
+            } catch (error) {
+                console.error('Failed to check export status:', error);
+            }
+        },
+
+        async downloadCSV() {
+            try {
+                const url = `/export/csv/download/${this.exportJobId}?user_id=${this.user.id}&export_type=admin`;
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'admin_parking_export.csv';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                this.exportJobId = null;
+                this.exportStatus = '';
+                
+            } catch (error) {
+                alert('Failed to download CSV');
+            }
+        },
+            
         createCharts() {
             if (!this.analyticsData) return;
             
@@ -375,7 +419,7 @@ createApp({
                 data: {
                     labels: monthlyRevenue.map(m => m.month || 'Unknown'),
                     datasets: [{
-                        label: 'Monthly Revenue ($)',
+                        label: 'Monthly Revenue (₹)',
                         data: monthlyRevenue.map(m => m.revenue || 0),
                         backgroundColor: 'rgba(255, 99, 132, 0.5)',
                         borderColor: 'rgba(255, 99, 132, 1)',
@@ -449,6 +493,6 @@ createApp({
         formatDateTime(dateString) {
             if (!dateString) return '-';
             return new Date(dateString).toLocaleString();
-        }
+        },
     }
 }).mount('#app');
