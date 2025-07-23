@@ -40,7 +40,10 @@ createApp({
             },
             exportJobId: null,
             exportStatus: '',
-            isLoading: false
+            isLoading: false,
+            searchQuery: '',
+            spotStatusFilter: '',
+            searchTimeout: null
         }
     },
     mounted() {
@@ -188,7 +191,27 @@ createApp({
                 }
             }
         },
-        
+        async deleteIndividualSpot(spotId, spotInfo) {
+            const confirmMessage = `Delete Spot ${spotId} from ${spotInfo.lot_name}?\n\nThis cannot be undone.`;
+            
+            if (confirm(confirmMessage)) {
+                try {
+                    await axios.delete(`/admin/spots/${spotId}/remove`, {
+                        headers: { Authorization: `Bearer ${this.token}` }
+                    });
+                    
+                    await this.fetchParkingSpots(); // Refresh the list
+                    alert(`Spot ${spotId} deleted successfully!`);
+                    
+                } catch (error) {
+                    const errorMsg = error.response?.data?.error || 'Failed to delete spot';
+                    alert(`Cannot delete spot: ${errorMsg}`);
+                }
+            }
+        },
+        getVehicleDisplay(spot) {
+            return spot.vehicle_number && spot.vehicle_number !== '-' ? spot.vehicle_number : '-';
+        },        
         async fetchAnalytics() {
             try {
                 // Fetch parking statistics
@@ -488,7 +511,104 @@ createApp({
                 }
             });
         },
+        getSearchPlaceholder() {
+            switch(this.activeTab) {
+                case 'lots': return 'Search by location name, address, or pincode...';
+                case 'spots': return 'Search by spot ID or lot name...';
+                case 'users': return 'Search by username or email...';
+                default: return 'Search...';
+            }
+        },
 
+        performSearch() {
+            clearTimeout(this.searchTimeout);
+            this.searchTimeout = setTimeout(() => {
+                this.executeSearch();
+            }, 300);
+        },
+
+        async executeSearch() {
+            try {
+                const queryString = this.buildSearchQuery();
+                let url = '';
+                switch(this.activeTab) {
+                    case 'lots':
+                        url = '/admin/lots';
+                        break;
+                    case 'spots':
+                        url = '/admin/spots';
+                        break;
+                    case 'users':
+                        url = '/admin/users';
+                        break;
+                }
+                
+                if (queryString) url += `?${queryString}`;
+                const response = await axios.get(url, {
+                    headers: { Authorization: `Bearer ${this.token}` }
+                });
+                switch(this.activeTab) {
+                    case 'lots':
+                        this.parkingLots = response.data.lots;
+                        break;
+                    case 'spots':
+                        this.parkingSpots = response.data.spots;
+                        break;
+                    case 'users':
+                        this.users = response.data.users;
+                        break;
+                }
+            } catch (error) {
+                console.error('Search failed:', error);
+                this.error = 'Search failed. Please try again.';
+            }
+        },
+
+        clearSearch() {
+            this.searchQuery = '';
+            this.spotStatusFilter = '';
+            switch(this.activeTab) {
+                case 'lots':
+                    this.fetchParkingLots();
+                    break;
+                case 'spots':
+                    this.fetchParkingSpots();
+                    break;
+                case 'users':
+                    this.fetchUsers();
+                    break;
+            }
+        },
+        buildSearchQuery() {
+            const params = new URLSearchParams();
+            if (this.searchQuery.trim()) {
+                params.append('q', this.searchQuery.trim());
+            }
+            if (this.activeTab === 'spots' && this.spotStatusFilter) {
+                params.append('status', this.spotStatusFilter);
+            }
+            return params.toString();
+        },
+
+        getSearchResultsText() {
+            let count = 0;
+            let type = '';
+            switch(this.activeTab) {
+                case 'lots':
+                    count = this.parkingLots.length;
+                    type = 'parking lot(s)';
+                    break;
+                case 'spots':
+                    count = this.parkingSpots.length;
+                    type = 'parking spot(s)';
+                    break;
+                case 'users':
+                    count = this.users.length;
+                    type = 'user(s)';
+                    break;
+            }
+            return `Found ${count} ${type}`;
+        },
         
         formatDateTime(dateString) {
             if (!dateString) return '-';

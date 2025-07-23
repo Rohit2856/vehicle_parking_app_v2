@@ -1,8 +1,11 @@
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
 from flask import request, jsonify, current_app
 from models import User, UserRole
+import pytz
+from pytz import timezone
+ist_timezone = pytz.timezone('Asia/Kolkata')
 
 class TokenManager:
     @staticmethod
@@ -12,8 +15,8 @@ class TokenManager:
             'user_id': user.id,
             'username': user.username,
             'role': user.role.value,
-            'iat': datetime.utcnow(),
-            'exp': datetime.utcnow() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES']
+            'iat': datetime.now(ist_timezone),
+            'exp': datetime.now(ist_timezone) + current_app.config['JWT_ACCESS_TOKEN_EXPIRES']
         }
         return jwt.encode(
             payload, 

@@ -1,6 +1,10 @@
 from flask import Blueprint, jsonify
 from auth_utils import token_required, admin_required, user_required
 from models import db, User, ParkingLot, ParkingSpot, Reservation, UserRole
+import pytz
+from pytz import timezone
+ist_timezone = pytz.timezone('Asia/Kolkata')
+from datetime import datetime
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -69,7 +73,7 @@ def user_dashboard(current_user):
         if active_reservations:
             reservation = active_reservations[0]
             from datetime import datetime
-            current_time = datetime.utcnow()
+            current_time = datetime.now(ist_timezone)
             duration_seconds = (current_time - reservation.parking_timestamp).total_seconds()
             duration_hours = round(duration_seconds / 3600, 2)
             estimated_cost = round(duration_hours * reservation.spot.lot.price, 2)

@@ -4,6 +4,9 @@ from models import db, ParkingLot, ParkingSpot, Reservation, User, UserRole, Par
 from cache_manager import cache_response
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_
+import pytz
+from pytz import timezone
+ist_timezone = pytz.timezone('Asia/Kolkata')
 
 analytics_bp = Blueprint('analytics', __name__, url_prefix='/analytics')
 
@@ -15,7 +18,7 @@ def get_admin_parking_stats(current_user):
     # Get parking statistics for admin dashboard charts (cached for 15 minutes)
     try:
         # Daily parking statistics for the last 7 days
-        end_date = datetime.utcnow()
+        end_date = datetime.now(ist_timezone)
         start_date = end_date - timedelta(days=7)
         
         daily_stats = []
@@ -56,7 +59,7 @@ def get_admin_parking_stats(current_user):
         # Monthly revenue statistics
         monthly_revenue = []
         for i in range(6):
-            month_start = datetime.utcnow().replace(day=1) - timedelta(days=i*30)
+            month_start = datetime.now(ist_timezone).replace(day=1) - timedelta(days=i*30)
             month_end = month_start + timedelta(days=30)
             
             revenue = db.session.query(func.sum(Reservation.parking_cost)).filter(
@@ -98,11 +101,11 @@ def get_admin_parking_stats(current_user):
         
         # Ensure minimum data for charts
         if not daily_stats or all(item['reservations'] == 0 for item in daily_stats):
-            current_date = datetime.utcnow().strftime('%Y-%m-%d')
+            current_date = datetime.now(ist_timezone).strftime('%Y-%m-%d')
             daily_stats = [{'date': current_date, 'reservations': 0}]
         
         if not monthly_revenue or all(item['revenue'] == 0 for item in monthly_revenue):
-            current_month = datetime.utcnow().strftime('%Y-%m')
+            current_month = datetime.now(ist_timezone).strftime('%Y-%m')
             monthly_revenue = [{'month': current_month, 'revenue': 0}]
         
         if not any(item['count'] > 0 for item in duration_ranges):
@@ -117,7 +120,7 @@ def get_admin_parking_stats(current_user):
             'monthly_revenue': monthly_revenue,
             'duration_distribution': duration_ranges,
             'cache_info': {
-                'cached_at': datetime.utcnow().isoformat(),
+                'cached_at': datetime.now(ist_timezone).isoformat(),
                 'ttl': 900
             }
         }), 200
@@ -138,7 +141,7 @@ def get_admin_revenue_summary(current_user):
         ).scalar()
         
         # Today's revenue
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(ist_timezone).replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
         
         today_revenue = db.session.query(func.sum(Reservation.parking_cost)).filter(
@@ -150,7 +153,7 @@ def get_admin_revenue_summary(current_user):
         ).scalar()
         
         # This month's revenue
-        month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_start = datetime.now(ist_timezone).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         month_revenue = db.session.query(func.sum(Reservation.parking_cost)).filter(
             and_(
                 Reservation.leaving_timestamp >= month_start,
@@ -188,7 +191,7 @@ def get_admin_revenue_summary(current_user):
             'average_revenue': round(avg_revenue, 2) if avg_revenue else 0,
             'lot_revenue': lot_revenue,
             'cache_info': {
-                'cached_at': datetime.utcnow().isoformat(),
+                'cached_at': datetime.now(ist_timezone).isoformat(),
                 'ttl': 900
             }
         }), 200
@@ -201,12 +204,12 @@ def get_admin_revenue_summary(current_user):
 @user_required
 @cache_response('analytics_user_parking_stats', ttl=300, user_specific=True)
 def get_user_parking_stats(current_user):
-    # Get parking statistics for user dashboard charts (cached for 5 minutes, user-specific)
+    # parking statistics for user dashboard chart
     try:
-        # User's monthly parking activity
+        # user monthly parking activity
         monthly_activity = []
         for i in range(6):
-            month_start = datetime.utcnow().replace(day=1) - timedelta(days=i*30)
+            month_start = datetime.now(ist_timezone).replace(day=1) - timedelta(days=i*30)
             month_end = month_start + timedelta(days=30)
             
             reservations_count = Reservation.query.filter(
@@ -225,10 +228,10 @@ def get_user_parking_stats(current_user):
         # Reverse to show chronological order
         monthly_activity.reverse()
         
-        # User's spending over time
+        # user spending over time
         monthly_spending = []
         for i in range(6):
-            month_start = datetime.utcnow().replace(day=1) - timedelta(days=i*30)
+            month_start = datetime.now(ist_timezone).replace(day=1) - timedelta(days=i*30)
             month_end = month_start + timedelta(days=30)
             
             spending = db.session.query(func.sum(Reservation.parking_cost)).filter(
@@ -270,8 +273,6 @@ def get_user_parking_stats(current_user):
                     if range_item['min'] <= duration < range_item['max']:
                         range_item['count'] += 1
                         break
-        
-        # User's favorite parking lots
         lot_usage = []
         lots = ParkingLot.query.all()
         for lot in lots:
@@ -290,16 +291,16 @@ def get_user_parking_stats(current_user):
                     'usage_count': usage_count
                 })
         
-        # Sort lot usage by count (descending)
+        # Sort lot usage by count 
         lot_usage.sort(key=lambda x: x['usage_count'], reverse=True)
         
         # Ensure minimum data for charts
         if not monthly_activity or all(item['reservations'] == 0 for item in monthly_activity):
-            current_month = datetime.utcnow().strftime('%Y-%m')
+            current_month = datetime.now(ist_timezone).strftime('%Y-%m')
             monthly_activity = [{'month': current_month, 'reservations': 0}]
         
         if not monthly_spending or all(item['spending'] == 0 for item in monthly_spending):
-            current_month = datetime.utcnow().strftime('%Y-%m')
+            current_month = datetime.now(ist_timezone).strftime('%Y-%m')
             monthly_spending = [{'month': current_month, 'spending': 0.0}]
         
         if not any(item['count'] > 0 for item in duration_preferences):
@@ -314,7 +315,7 @@ def get_user_parking_stats(current_user):
             'duration_preferences': duration_preferences,
             'lot_usage': lot_usage,
             'cache_info': {
-                'cached_at': datetime.utcnow().isoformat(),
+                'cached_at': datetime.now(ist_timezone).isoformat(),
                 'ttl': 300
             }
         }), 200
@@ -326,7 +327,7 @@ def get_user_parking_stats(current_user):
 @token_required
 @admin_required
 def clear_analytics_cache(current_user):
-    # Clear analytics cache (admin only)
+    # Clear analytics cache
     try:
         from cache_manager import cache_manager
         cache_manager.delete_cached_data('analytics_*')

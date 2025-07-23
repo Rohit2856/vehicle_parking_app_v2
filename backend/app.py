@@ -9,44 +9,42 @@ from user_routes import user_bp
 from analytics_routes import analytics_bp
 from job_routes import job_bp
 from werkzeug.security import generate_password_hash
+import pytz
+from pytz import timezone
+ist_timezone = pytz.timezone('Asia/Kolkata')
 from datetime import datetime
 import subprocess
 import sys
 import os
 
 def create_app():
-    # Configure Flask to serve frontend files
     app = Flask(__name__, 
                 static_folder='../frontend',  
                 static_url_path='')           
     
     app.config.from_object(Config)
-    # Initialize extensions
     db.init_app(app)
     mail = Mail(app)
     
-    # Initialize Celery
-    from celery_worker import make_celery
+    from celery_worker import make_celery   # initialize Celery
     celery = make_celery(app)
     
     app.extensions['celery'] = celery
     app.extensions['mail'] = mail
     
-    # Test Redis connection
     try:
         from cache_manager import redis_client
         redis_client.ping()
         print("Redis connection successful")
     except Exception as e:
         print(f"Redis connection failed: {e}")
-    
-    # Setup Celery tasks within app context
-    with app.app_context():
+
+    with app.app_context():    # set celery tasks within app context
         from celery_tasks import setup_periodic_tasks, register_tasks
         setup_periodic_tasks(celery)
         app.celery_tasks = register_tasks(celery)
     
-    # Register API blueprints
+    # register api blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(admin_lot_bp)
@@ -54,7 +52,7 @@ def create_app():
     app.register_blueprint(analytics_bp)
     app.register_blueprint(job_bp)
     
-    # API Status endpoint
+    # api status endpoint
     @app.route('/api/status')
     def api_status():
         return jsonify({
@@ -105,7 +103,7 @@ def create_app():
         
         return jsonify({
             'status': 'healthy',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(ist_timezone).isoformat(),
             'system_status': {
                 'database': 'connected',
                 'redis_cache': redis_status,
@@ -122,35 +120,27 @@ def create_app():
             'background_jobs': 'enabled'
         })
     
-    # Frontend serving routes
+    # frontend serving routes
     @app.route('/')
     def serve_index():
-        """Serve the main login page"""
         return send_from_directory(app.static_folder, 'index.html')
     
     @app.route('/<path:path>')
     def serve_frontend(path):
-        # Define API prefixes to avoid conflicts
+        # api prefixes to avoid conflicts
         api_prefixes = ['auth', 'admin', 'user', 'analytics', 'jobs', 'export', 'test', 'health', 'api']
         
         if any(path.startswith(prefix + '/') or path == prefix for prefix in api_prefixes):
             return None  # will trigger Flask's normal routing
         
-        # For frontend files
         frontend_file_path = os.path.join(app.static_folder, path)
-
-        # To check if the requested file exists in the static folder
-        if os.path.exists(frontend_file_path) and os.path.isfile(frontend_file_path):
+        if os.path.exists(frontend_file_path) and os.path.isfile(frontend_file_path):  # check if the path is a file
             return send_from_directory(app.static_folder, path)
-
-        # For Single Page Application routing
-        # serving index.html for unknown routes
         return send_from_directory(app.static_folder, 'index.html')
     
-    # Error handlers
+    # error handlers
     @app.errorhandler(404)
     def not_found_error(error):
-        # For API requests, return JSON error
         if request.path.startswith('/auth/') or request.path.startswith('/admin/') or \
            request.path.startswith('/user/') or request.path.startswith('/analytics/') or \
            request.path.startswith('/jobs/') or request.path.startswith('/export/') or \
@@ -171,7 +161,6 @@ def setup_database(app):
     with app.app_context():
         db.create_all()
         admin_user = User.query.filter_by(username='admin').first()
-        
         if not admin_user:
             admin_user = User(
                 username='admin',
@@ -194,15 +183,14 @@ def setup_database(app):
             print("Admin user already exists")
 
 def start_celery_components():
-    # to sttart Celery worker and beat as background processes
+    # sttart celery worker and beat as background processes
     try:
-        # to start Celery worker
-        worker_process = subprocess.Popen([
+        worker_process = subprocess.Popen([   # start celery worker
             sys.executable, '-m', 'celery', 
             '-A', 'celery_app:celery', 'worker', 
             '--loglevel=info', '--pool=solo'
         ], cwd=os.getcwd())
-        # to start Celery beat
+        # start celery beat
         beat_process = subprocess.Popen([
             sys.executable, '-m', 'celery', 
             '-A', 'celery_app:celery', 'beat', 
@@ -238,11 +226,10 @@ if __name__ == '__main__':
     print("Background Jobs: CSV Export, Email Reports, GChat Notifications")
     print("="*60)
     print("FRONTEND + BACKEND UNIFIED SERVER")
-    print("Access your complete app at: http://127.0.0.1:5000")
+    print("Access entire application at: http://127.0.0.1:5000")
     print("API Documentation at: http://127.0.0.1:5000/api/status")
     print("Health Check at: http://127.0.0.1:5000/health")
     print("="*60 + "\n")
-    print("Access entire application at: http://127.0.0.1:5000")
     
     try:
         app.run(debug=True, host='0.0.0.0', port=5000)

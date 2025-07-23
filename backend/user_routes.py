@@ -2,6 +2,9 @@ from flask import Blueprint, request, jsonify
 from auth_utils import token_required, user_required
 from models import db, ParkingLot, ParkingSpot, ParkingSpotStatus, Reservation
 from datetime import datetime
+import pytz
+from pytz import timezone
+ist_timezone = pytz.timezone('Asia/Kolkata')
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
@@ -76,7 +79,7 @@ def reserve_parking_spot(current_user):
             return jsonify({'error': 'No available spots in this lot'}), 400
 
         # Create reservation
-        now = datetime.utcnow()
+        now = datetime.now(ist_timezone)
         reservation = Reservation(
             spot_id=available_spot.id,
             user_id=current_user.id,
@@ -129,7 +132,7 @@ def occupy_spot(current_user, reservation_id):
         spot.status = ParkingSpotStatus.occupied
 
         # Update parking timestamp to current time
-        reservation.parking_timestamp = datetime.utcnow()
+        reservation.parking_timestamp = datetime.now(ist_timezone)
 
         db.session.commit()
 
@@ -164,7 +167,7 @@ def release_spot(current_user, reservation_id):
         spot.status = ParkingSpotStatus.available
 
         # Set leaving timestamp
-        reservation.leaving_timestamp = datetime.utcnow()
+        reservation.leaving_timestamp = datetime.now(ist_timezone)
 
         # Calculate parking cost based on duration
         duration_seconds = (reservation.leaving_timestamp - reservation.parking_timestamp).total_seconds()
@@ -243,8 +246,8 @@ def get_current_reservation(current_user):
         if not active_reservation:
             return jsonify({'active_reservation': None}), 200
         
-        # Calculate current duration
-        current_time = datetime.utcnow()
+        # calculate current duration
+        current_time = datetime.now(ist_timezone)
         duration_seconds = (current_time - active_reservation.parking_timestamp).total_seconds()
         duration_hours = round(duration_seconds / 3600, 2)
         estimated_cost = round(duration_hours * active_reservation.spot.lot.price, 2)
