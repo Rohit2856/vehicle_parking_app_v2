@@ -3,162 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle Parking App - Admin Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <title>Admin Dashboard - Vehicle Parking App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="bg-light">
     <div id="app">
+        <!-- Navigation Bar -->
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container">
                 <a class="navbar-brand" href="#"> Vehicle Parking App</a>
-                <div class="navbar-nav ms-auto">
-                    <span class="navbar-text" v-if="user">
+                <div class="navbar-nav ms-auto d-flex align-items-center">
+                    <span class="navbar-text me-3" v-if="user">
                         Welcome, {{ user.username }} ({{ user.role }})
                     </span>
-                    <button class="btn btn-outline-light ms-2" @click="logout" v-if="user">
-                        Logout
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary btn-sm" @click="openMyProfile()">
+                            <i class="fas fa-user"></i> View Profile
+                        </button>
+                        <button class="btn btn-outline-light btn-sm" @click="logout" v-if="user">
+                            Logout
+                        </button>
+                    </div>
                 </div>
             </div>
         </nav>
 
-        <div class="container mt-4" v-if="user && user.role === 'admin'">
-            <div class="row">
-                <div class="col-12">
-                    <h2>Admin Dashboard</h2>
-                    
-                    <!-- Navigation Tabs -->
-                    <ul class="nav nav-tabs" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link" :class="{active: activeTab === 'overview'}" 
-                               @click="activeTab = 'overview'">Overview</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" :class="{active: activeTab === 'lots'}" 
-                               @click="activeTab = 'lots'; fetchParkingLots()">Parking Lots</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" :class="{active: activeTab === 'spots'}" 
-                               @click="activeTab = 'spots'; fetchParkingSpots()">Parking Spots</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" :class="{active: activeTab === 'users'}" 
-                               @click="activeTab = 'users'; fetchUsers()">Users</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" :class="{active: activeTab === 'analytics'}" 
-                            @click="activeTab = 'analytics'; fetchAnalytics()">Analytics</a>
-                        </li>  
-                    </ul>   
-                    <div class="row mb-4 mt-3" v-if="activeTab === 'lots' || activeTab === 'spots' || activeTab === 'users'">
-                        <div class="col-md-6">
-                            <div class="input-group">
-                                <input type="text" 
-                                    class="form-control" 
-                                    v-model="searchQuery"             
-                                    @input="performSearch"
-                                    :placeholder="getSearchPlaceholder()"
-                                    @keyup.enter="performSearch">
-                                <button class="btn btn-outline-secondary" @click="clearSearch">
-                                    ✕
-                                </button>
+        <!-- Sidebar -->
+        <div class="sidebar position-fixed bg-primary text-white" style="width: 250px; height: 100vh; top: 0; left: 0; z-index: 1000; padding-top: 20px;">
+            <div class="px-3 py-2">
+                <h5 class="text-white text-center mb-4">
+                    <i class="fas fa-car me-2"></i>Admin Panel
+                </h5>
+                <nav class="nav flex-column">
+                    <a class="nav-link text-white p-3 rounded mb-2" href="#" :class="{'bg-white bg-opacity-25': activeTab === 'overview'}" @click="activeTab = 'overview'; fetchDashboardSummary()">
+                        <i class="fas fa-tachometer-alt me-2"></i>Overview
+                    </a>
+                    <a class="nav-link text-white p-3 rounded mb-2" href="#" :class="{'bg-white bg-opacity-25': activeTab === 'lots'}" @click="activeTab = 'lots'; fetchParkingLots()">
+                        <i class="fas fa-building me-2"></i>Parking Lots
+                    </a>
+                    <a class="nav-link text-white p-3 rounded mb-2" href="#" :class="{'bg-white bg-opacity-25': activeTab === 'spots'}" @click="activeTab = 'spots'; fetchParkingSpots()">
+                        <i class="fas fa-car me-2"></i>Parking Spots
+                    </a>
+                    <a class="nav-link text-white p-3 rounded mb-2" href="#" :class="{'bg-white bg-opacity-25': activeTab === 'users'}" @click="activeTab = 'users'; loadUsersForManagement()">
+                        <i class="fas fa-users-cog me-2"></i>Users Management
+                    </a>
+                    <a class="nav-link text-white p-3 rounded mb-2" href="#" :class="{'bg-white bg-opacity-25': activeTab === 'analytics'}" @click="activeTab = 'analytics'; fetchAnalytics()">
+                        <i class="fas fa-chart-bar me-2"></i>Analytics
+                    </a>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div style="margin-left: 250px; min-height: 100vh;">
+            <div class="container-fluid py-4">
+                <div v-if="error" class="alert alert-danger alert-dismissible fade show">
+                    {{ error }}
+                    <button type="button" class="btn-close" @click="error = ''"></button>
+                </div>
+
+                <!-- Overview Tab -->
+                <div v-if="activeTab === 'overview'">
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h2 class="fw-bold">Dashboard Overview</h2>
+                                <div>
+                                    <button class="btn btn-outline-success me-2" @click="triggerCSVExport('admin')" :disabled="exportStatus === 'processing'">
+                                        <span v-if="exportStatus === 'processing'" class="spinner-border spinner-border-sm me-2"></span>
+                                        <i v-else class="fas fa-download me-2"></i>
+                                        {{ exportStatus === 'processing' ? 'Exporting...' : 'Export Data' }}
+                                    </button>
+                                    <button class="btn btn-primary" @click="refreshDashboard" :disabled="isLoading">
+                                        <span v-if="isLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                        <i v-else class="fas fa-sync me-2"></i>
+                                        {{ isLoading ? 'Refreshing...' : 'Refresh' }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6" v-if="activeTab === 'spots'">
-                            <select class="form-select" v-model="spotStatusFilter" @change="performSearch">
-                                <option value="">All Spots</option>
-                                <option value="A">Available</option>
-                                <option value="O">Occupied</option>
-                            </select>
+                    </div>
+                    
+                    <!-- Dashboard Summary Cards -->
+                    <div class="row" v-if="dashboardSummary">
+                        <div class="col-md-3 mb-4">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="card-title mb-0">Total Lots</h6>
+                                            <h3 class="mb-0">{{ dashboardSummary.total_lots || 0 }}</h3>
+                                        </div>
+                                        <i class="fas fa-building fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="card-title mb-0">Total Spots</h6>
+                                            <h3 class="mb-0">{{ dashboardSummary.total_spots || 0 }}</h3>
+                                        </div>
+                                        <i class="fas fa-car fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="card-title mb-0">Active Users</h6>
+                                            <h3 class="mb-0">{{ dashboardSummary.total_users || 0 }}</h3>
+                                        </div>
+                                        <i class="fas fa-users fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="card-title mb-0">Total Revenue</h6>
+                                            <h3 class="mb-0">₹{{ dashboardSummary.total_revenue || 0 }}</h3>
+                                        </div>
+                                        <i class="fas fa-rupee-sign fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div v-if="searchQuery || spotStatusFilter" class="alert alert-info">
-                        <small>{{ getSearchResultsText() }}</small>
-                    </div>
 
-                    <!-- Overview Tab -->
-                    <div class="tab-content mt-3">
-                        <div v-if="activeTab === 'overview'">
-                            <div class="row" v-if="dashboardSummary">
-                                <div class="col-md-3">
-                                    <div class="card bg-primary text-white">
-                                        <div class="card-body">
-                                            <h5>Total Users</h5>
-                                            <h3>{{ dashboardSummary.system_overview.total_registered_users }}</h3>
-                                        </div>
-                                    </div>
+                    <!-- System Statistics -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-chart-line me-2"></i>System Performance
+                                    </h5>
                                 </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-success text-white">
-                                        <div class="card-body">
-                                            <h5>Parking Lots</h5>
-                                            <h3>{{ dashboardSummary.system_overview.total_parking_lots }}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-info text-white">
-                                        <div class="card-body">
-                                            <h5>Total Spots</h5>
-                                            <h3>{{ dashboardSummary.system_overview.total_parking_spots }}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-warning text-white">
-                                        <div class="card-body">
-                                            <h5>Occupancy Rate</h5>
-                                            <h3>{{ dashboardSummary.system_overview.occupancy_rate }}%</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row mb-4">
-                                    <div class="col-md-12">
-                                        <div class="card">
-                                            <div class="card-header">
-                                                <h6>Admin Actions</h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <button class="btn btn-success me-2" @click="triggerCSVExport('admin')" :disabled="exportStatus === 'processing'">
-                                                    <i class="fas fa-download"></i>
-                                                    <span v-if="exportStatus === 'processing'">Exporting...</span>
-                                                    <span v-else>Export All Data (CSV)</span>
-                                                </button>
-                                                
-                                                <button class="btn btn-info me-2" @click="requestMonthlyReports">
-                                                    <i class="fas fa-file-pdf"></i>
-                                                    Generate Monthly Reports
-                                                </button>
-                                                
-                                                <div v-if="exportStatus === 'processing'" class="mt-2">
-                                                    <div class="spinner-border spinner-border-sm text-success" role="status">
-                                                        <span class="visually-hidden">Processing...</span>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <small class="text-muted">Overall Occupancy Rate</small>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-success" :style="'width: ' + systemStats.occupancy_rate + '%'">
+                                                        {{ systemStats.occupancy_rate }}%
                                                     </div>
-                                                    <span class="ms-2">Processing CSV export...</span>
                                                 </div>
                                             </div>
+                                            <div class="mb-3">
+                                                <small class="text-muted">Average Revenue per User</small>
+                                                <h5 class="text-primary">₹{{ systemStats.avg_revenue_per_user || 0 }}</h5>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <small class="text-muted">System Uptime</small>
+                                                <h5 class="text-success">{{ systemStats.system_uptime || 'N/A' }}</h5>
+                                            </div>
+                                            <div class="mb-3">
+                                                <small class="text-muted">Last Backup</small>
+                                                <h6 class="text-info">{{ systemStats.last_backup || 'N/A' }}</h6>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <button v-for="action in quickActions" :key="action.title" 
+                                                class="btn btn-sm" :class="'btn-' + action.color"
+                                                @click="action.action()">
+                                            <i :class="action.icon + ' me-2'"></i>{{ action.title }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                        <!-- Parking Lots Tab -->
-                        <div v-if="activeTab === 'lots'">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h4>Parking Lots Management</h4>
+                    <!-- Recent Activities -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-history me-2"></i>Recent Activities
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="timeline">
+                                        <div v-for="activity in recentActivities" :key="activity.message" class="timeline-item">
+                                            <div class="timeline-marker">
+                                                <i :class="activity.icon + ' text-' + activity.color"></i>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <h6 class="mb-1">{{ activity.message }}</h6>
+                                                <small class="text-muted">{{ activity.time }}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parking Lots Tab -->
+                <div v-if="activeTab === 'lots'">
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h2 class="fw-bold">Parking Lots Management</h2>
                                 <button class="btn btn-primary" @click="showCreateLotModal = true">
-                                    Create New Lot
+                                    <i class="fas fa-plus me-2"></i>Create New Lot
                                 </button>
                             </div>
-                            
+                        </div>
+                    </div>
+
+                    <!-- Search Container -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <input type="text" class="form-control" v-model="searchQuery" 
+                                           placeholder="Search by location name, address, or pincode..." @input="performSearch">
+                                </div>
+                                <div class="col-md-4">
+                                    <button class="btn btn-outline-secondary w-100" @click="clearSearch">
+                                        <i class="fas fa-times me-2"></i>Clear
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <small class="text-muted">Found {{ parkingLots.length }} parking lot(s)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parking Lots Table -->
+                    <div class="card">
+                        <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-striped">
-                                    <thead>
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
                                         <tr>
                                             <th>ID</th>
                                             <th>Location Name</th>
@@ -175,29 +287,76 @@
                                             <td>{{ lot.id }}</td>
                                             <td>{{ lot.prime_location_name }}</td>
                                             <td>₹{{ lot.price }}</td>
-                                            <td>{{ lot.spot_summary.total_spots }}</td>
-                                            <td>{{ lot.spot_summary.occupied_spots }}</td>
-                                            <td>{{ lot.spot_summary.available_spots }}</td>
-                                            <td>{{ lot.spot_summary.occupancy_rate }}%</td>
+                                            <td>{{ lot.spot_summary?.total_spots || 0 }}</td>
+                                            <td>{{ lot.spot_summary?.occupied_spots || 0 }}</td>
+                                            <td>{{ lot.spot_summary?.available_spots || 0 }}</td>
+                                            <td>{{ lot.spot_summary?.occupancy_rate || 0 }}%</td>
                                             <td>
-                                                <button class="btn btn-sm btn-info me-1" 
-                                                        @click="viewLotDetails(lot.id)">View</button>
-                                                <button class="btn btn-sm btn-warning me-1" 
-                                                        @click="editLot(lot)">Edit</button>
-                                                <button class="btn btn-sm btn-danger" 
-                                                        @click="deleteLot(lot.id)">Delete</button>
+                                                <button class="btn btn-info btn-sm me-2" @click="viewLotDetails(lot.id)">
+                                                    <i class="fas fa-eye"></i> View
+                                                </button>
+                                                <button class="btn btn-warning btn-sm me-2" @click="editLot(lot)">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+                                                <button class="btn btn-danger btn-sm" @click="deleteLot(lot.id)">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr v-if="parkingLots.length === 0">
+                                            <td colspan="8" class="text-center text-muted py-4">
+                                                <i class="fas fa-info-circle me-2"></i>No parking lots found
                                             </td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <div v-if="activeTab === 'spots'" class="tab-pane fade show active">
-                            <h4>Parking Spots Management</h4>
-                            
+                <!-- Parking Spots Tab -->
+                <div v-if="activeTab === 'spots'">
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <h2 class="fw-bold">Parking Spots Management</h2>
+                        </div>
+                    </div>
+
+                    <!-- Search Container -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" v-model="searchQuery" 
+                                           placeholder="Search by spot ID or lot name..." @input="performSearch">
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" v-model="spotStatusFilter" @change="performSearch">
+                                        <option value="">All Status</option>
+                                        <option value="A">Available</option>
+                                        <option value="O">Occupied</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-secondary w-100" @click="clearSearch">
+                                        <i class="fas fa-times me-2"></i>Clear
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <small class="text-muted">Found {{ parkingSpots.length }} parking spot(s)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parking Spots Table -->
+                    <div class="card">
+                        <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-striped">
+                                <table class="table table-striped table-hover">
                                     <thead class="table-dark">
                                         <tr>
                                             <th>Spot ID</th>
@@ -206,178 +365,216 @@
                                             <th>Current User</th>
                                             <th>Vehicle Number</th>
                                             <th>Duration</th>
+                                            <th>Current Cost</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr v-for="spot in parkingSpots" :key="spot.id">
-                                            <td><span class="badge bg-secondary">{{ spot.id }}</span></td>
+                                            <td>{{ spot.id }}</td>
                                             <td>{{ spot.lot_name }}</td>
                                             <td>
-                                                <span class="badge" :class="spot.status === 'O' ? 'bg-danger' : 'bg-success'">
+                                                <span :class="'badge ' + (spot.status === 'O' ? 'bg-warning' : 'bg-success')">
                                                     {{ spot.status_display }}
                                                 </span>
                                             </td>
-                                            <td>{{ spot.active_reservation ? spot.active_reservation.username : '-' }}</td>
-                                            <td><strong>{{ getVehicleDisplay(spot) }}</strong></td>
+                                            <td>{{ spot.active_reservation?.username || '-' }}</td>
+                                            <td>{{ getVehicleDisplay(spot) }}</td>
+                                            <td>{{ spot.active_reservation ? Math.round(spot.active_reservation.duration_hours * 100) / 100 + ' hrs' : '-' }}</td>
+                                            <td>{{ spot.active_reservation ? '₹' + Math.round(spot.active_reservation.current_cost * 100) / 100 : '-' }}</td>
                                             <td>
-                                                {{ spot.active_reservation ? 
-                                                Math.round(spot.active_reservation.duration_hours * 100) / 100 + ' hrs' : 
-                                                '-' }}
-                                            </td>
-                                            <td>
-                                                <button v-if="spot.can_delete" 
-                                                        class="btn btn-danger btn-sm" 
-                                                        @click="deleteIndividualSpot(spot.id, spot)">
-                                                    Delete
+                                                <button class="btn btn-danger btn-sm" 
+                                                        @click="deleteIndividualSpot(spot.id, spot)"
+                                                        :disabled="spot.status === 'O'">
+                                                    <i class="fas fa-trash"></i>
+                                                    {{ spot.status === 'O' ? 'Occupied' : 'Delete' }}
                                                 </button>
-                                                <span v-else class="text-muted small">
-                                                    {{ spot.status === 'O' ? 'Occupied' : 'Cannot delete' }}
-                                                </span>
+                                            </td>
+                                        </tr>
+                                        <tr v-if="parkingSpots.length === 0">
+                                            <td colspan="8" class="text-center text-muted py-4">
+                                                <i class="fas fa-info-circle me-2"></i>No parking spots found
                                             </td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <div v-if="activeTab === 'users'">
-                            <h4>Users Management</h4>
+                <!-- Users Management Tab -->
+                <div v-if="activeTab === 'users'">
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <h2 class="fw-bold">
+                                <i class="fas fa-users-cog me-3"></i>Users Management
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-users me-2"></i>Registered Users
+                            </h5>
+                        </div>
+                        <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-striped">
-                                    <thead>
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
                                         <tr>
-                                            <th>User ID</th>
                                             <th>Username</th>
+                                            <th>Email</th>
+                                            <th>Mobile</th>
+                                            <th>Vehicle Info</th>
                                             <th>Total Reservations</th>
-                                            <th>Currently Parked</th>
-                                            <th>Total Spent</th>
-                                            <th>Current Spots</th>
+                                            <th>Historical Spent</th>
+                                            <th>Current Session Cost</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="user in users" :key="user.id">
-                                            <td>{{ user.id }}</td>
+                                        <tr v-for="user in usersList" :key="user.id">
                                             <td>{{ user.username }}</td>
-                                            <td>{{ user.parking_stats.total_reservations }}</td>
+                                            <td>{{ user.email }}</td>
+                                            <td>{{ user.mobile_number }}</td>
+                                            <td>{{ user.vehicle_type }} - {{ user.vehicle_number }}</td>
+                                            <td>{{ user.total_reservations }}</td>
+                                            <td>₹{{ user.total_spent }}</td>
                                             <td>
-                                                <span class="badge" 
-                                                      :class="user.is_currently_parked ? 'bg-warning' : 'bg-secondary'">
-                                                    {{ user.is_currently_parked ? 'Yes' : 'No' }}
-                                                </span>
-                                            </td>
-                                            <td>₹{{ user.parking_stats.total_amount_spent }}</td>
-                                            <td>
-                                                <span v-if="user.current_parking.length > 0">
-                                                    Spot {{ user.current_parking[0].spot_id }}
+                                                <span v-if="user.currently_parked" class="badge bg-warning">
+                                                    ₹{{ user.current_cost }} (Live)
                                                 </span>
                                                 <span v-else>-</span>
                                             </td>
+                                            <td>
+                                                <span :class="getUserStatusBadge(user)">
+                                                    {{ getUserStatusText(user) }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-info btn-sm me-2" @click="viewUserDetails(user.id)">
+                                                    <i class="fas fa-eye"></i> View
+                                                </button>
+                                                <button class="btn btn-danger btn-sm" @click="confirmDeleteUser(user)"
+                                                        :disabled="!user.can_delete">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </td>
                                         </tr>
-                                    </tbody>
+                                    </tbody>                                    
                                 </table>
                             </div>
                         </div>
-            
-                        <div v-if="activeTab === 'analytics'">
-                            <h4>Parking Analytics & Charts</h4>
-                            
-                            <!-- Chart1 -->
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h6>Daily Reservations (Last 7 Days)</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <canvas id="dailyReservationsChart" width="400" height="200"></canvas>
-                                        </div>
-                                    </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Tab -->
+                <div v-if="activeTab === 'analytics'">
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h2 class="fw-bold">Analytics Dashboard</h2>
+                                <div>
+                                    <button class="btn btn-primary me-2" @click="refreshAnalytics" :disabled="isLoading">
+                                        <span v-if="isLoading" class="spinner-border spinner-border-sm me-2"></span>
+                                        <i v-else class="fas fa-sync me-2"></i>Refresh
+                                    </button>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h6>Lot Occupancy Rates</h6>
+                            </div>
+                            <small v-if="lastUpdated" class="text-muted">Last updated: {{ lastUpdated }}</small>
+                        </div>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div v-if="isLoading" class="text-center py-5">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+                        <p class="mt-3">Loading analytics data...</p>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div v-else-if="summaryCards.length > 0" class="row mb-4">
+                        <div class="col-md-3 mb-3" v-for="card in summaryCards" :key="card.title">
+                            <div class="card text-white" :class="'bg-' + card.color">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="card-title mb-0">{{ card.title }}</h6>
+                                            <h3 class="mb-0">{{ card.value }}</h3>
                                         </div>
-                                        <div class="card-body">
-                                            <canvas id="lotOccupancyChart" width="400" height="200"></canvas>
-                                        </div>
+                                        <i :class="card.icon + ' fa-2x opacity-50'"></i>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Chart2 -->
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h6>Monthly Revenue (Last 6 Months)</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <canvas id="monthlyRevenueChart" width="400" height="200"></canvas>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h6>Parking Duration Distribution</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <canvas id="durationDistributionChart" width="400" height="200"></canvas>
-                                        </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div v-if="analyticsData && summaryCards.length > 0" class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Weekly Activity</h5>
+                                    <div style="height: 300px;">
+                                        <canvas id="weeklyActivityChart"></canvas>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Revenue Summary Cards -->
-                            <div class="row" v-if="revenueSummary">
-                                <div class="col-md-3">
-                                    <div class="card bg-success text-white">
-                                        <div class="card-body">
-                                            <h5>Total Revenue</h5>
-                                            <h3>₹{{ revenueSummary.total_revenue }}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-primary text-white">
-                                        <div class="card-body">
-                                            <h5>Today's Revenue</h5>
-                                            <h3>₹{{ revenueSummary.today_revenue }}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-info text-white">
-                                        <div class="card-body">
-                                            <h5>This Month</h5>
-                                            <h3>₹{{ revenueSummary.month_revenue }}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-warning text-white">
-                                        <div class="card-body">
-                                            <h5>Average Revenue</h5>
-                                            <h3>₹{{ revenueSummary.average_revenue }}</h3>
-                                        </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Live Occupancy</h5>
+                                    <div style="height: 300px;">
+                                        <canvas id="occupancyChart"></canvas>
                                     </div>
                                 </div>
                             </div>
-                        </div>                        
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Revenue Analysis</h5>
+                                    <div style="height: 300px;">
+                                        <canvas id="revenueChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Peak Hours</h5>
+                                    <div style="height: 300px;">
+                                        <canvas id="peakHoursChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="alert alert-info text-center">
+                        <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                        <h4>No Analytics Data Available</h4>
+                        <p>Analytics data will appear here once you have parking reservations and user activity.</p>
+                        <button class="btn btn-primary" @click="fetchAnalytics">
+                            <i class="fas fa-sync me-2"></i>Refresh Analytics
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Create Lot Modal -->
-        <div class="modal fade" :class="{show: showCreateLotModal}" 
-             :style="{display: showCreateLotModal ? 'block' : 'none'}" v-if="showCreateLotModal">
+        <div v-if="showCreateLotModal" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Create New Parking Lot</h5>
+                        <h5 class="modal-title">
+                            <i class="fas fa-plus me-2"></i>Create New Parking Lot
+                        </h5>
                         <button type="button" class="btn-close" @click="showCreateLotModal = false"></button>
                     </div>
                     <div class="modal-body">
@@ -387,12 +584,12 @@
                                 <input type="text" class="form-control" v-model="newLot.prime_location_name" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Price per Hour</label>
-                                <input type="number" step="0.01" class="form-control" v-model="newLot.price" required>
+                                <label class="form-label">Price per Hour (₹)</label>
+                                <input type="number" class="form-control" v-model="newLot.price" step="0.01" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Address</label>
-                                <textarea class="form-control" v-model="newLot.address"></textarea>
+                                <textarea class="form-control" rows="2" v-model="newLot.address"></textarea>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Pin Code</label>
@@ -400,67 +597,44 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Number of Spots</label>
-                                <input type="number" class="form-control" v-model="newLot.number_of_spots" required min="1" max="1000">
+                                <input type="number" class="form-control" v-model="newLot.number_of_spots" min="1" required>
                             </div>
-                            <button type="submit" class="btn btn-primary">Create Lot</button>
                         </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="showCreateLotModal = false">Cancel</button>
+                        <button type="button" class="btn btn-primary" @click="createParkingLot">
+                            <i class="fas fa-save me-2"></i>Create Lot
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- View Lot Details Modal -->
-        <div class="modal fade" :class="{show: showViewModal}" 
-             :style="{display: showViewModal ? 'block' : 'none'}" v-if="showViewModal">
+        <div v-if="showViewModal && selectedLotDetails" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Parking Lot Details</h5>
+                        <h5 class="modal-title">
+                            <i class="fas fa-eye me-2"></i>Lot Details: {{ selectedLotDetails.prime_location_name }}
+                        </h5>
                         <button type="button" class="btn-close" @click="showViewModal = false"></button>
                     </div>
-                    <div class="modal-body" v-if="selectedLotDetails">
+                    <div class="modal-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <h6>Basic Information</h6>
                                 <p><strong>Location:</strong> {{ selectedLotDetails.prime_location_name }}</p>
-                                <p><strong>Price:</strong> ₹{{ selectedLotDetails.price }}/hour</p>
                                 <p><strong>Address:</strong> {{ selectedLotDetails.address || 'N/A' }}</p>
                                 <p><strong>Pin Code:</strong> {{ selectedLotDetails.pin_code || 'N/A' }}</p>
-                                <p><strong>Total Spots:</strong> {{ selectedLotDetails.number_of_spots }}</p>
+                                <p><strong>Price:</strong> ₹{{ selectedLotDetails.price }}/hour</p>
                             </div>
                             <div class="col-md-6">
-                                <h6>Summary</h6>
-                                <p><strong>Total Spots:</strong> {{ selectedLotDetails.summary.total_spots }}</p>
-                                <p><strong>Occupied:</strong> {{ selectedLotDetails.summary.occupied_spots }}</p>
-                                <p><strong>Available:</strong> {{ selectedLotDetails.summary.available_spots }}</p>
-                                <p><strong>Occupancy:</strong> {{ Math.round((selectedLotDetails.summary.occupied_spots / selectedLotDetails.summary.total_spots) * 100) }}%</p>
+                                <p><strong>Total Spots:</strong> {{ selectedLotDetails.total_spots }}</p>
+                                <p><strong>Available:</strong> {{ selectedLotDetails.available_spots }}</p>
+                                <p><strong>Occupied:</strong> {{ selectedLotDetails.occupied_spots }}</p>
+                                <p><strong>Occupancy Rate:</strong> {{ selectedLotDetails.occupancy_rate }}%</p>
                             </div>
-                        </div>
-                        
-                        <h6 class="mt-4">Parking Spots</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Spot ID</th>
-                                        <th>Status</th>
-                                        <th>Current User</th>
-                                        <th>Parking Time</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="spot in selectedLotDetails.spots" :key="spot.id">
-                                        <td>{{ spot.id }}</td>
-                                        <td>
-                                            <span class="badge" :class="spot.status === 'O' ? 'bg-danger' : 'bg-success'">
-                                                {{ spot.status === 'O' ? 'Occupied' : 'Available' }}
-                                            </span>
-                                        </td>
-                                        <td>{{ spot.active_reservation ? spot.active_reservation.username : '-' }}</td>
-                                        <td>{{ spot.active_reservation ? formatDateTime(spot.active_reservation.parking_timestamp) : '-' }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
@@ -468,12 +642,13 @@
         </div>
 
         <!-- Edit Lot Modal -->
-        <div class="modal fade" :class="{show: showEditModal}" 
-             :style="{display: showEditModal ? 'block' : 'none'}" v-if="showEditModal">
+        <div v-if="showEditModal" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Edit Parking Lot</h5>
+                        <h5 class="modal-title">
+                            <i class="fas fa-edit me-2"></i>Edit Parking Lot
+                        </h5>
                         <button type="button" class="btn-close" @click="showEditModal = false"></button>
                     </div>
                     <div class="modal-body">
@@ -483,12 +658,12 @@
                                 <input type="text" class="form-control" v-model="editLotData.prime_location_name" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Price per Hour</label>
-                                <input type="number" step="0.01" class="form-control" v-model="editLotData.price" required>
+                                <label class="form-label">Price per Hour (₹)</label>
+                                <input type="number" class="form-control" v-model="editLotData.price" step="0.01" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Address</label>
-                                <textarea class="form-control" v-model="editLotData.address"></textarea>
+                                <textarea class="form-control" rows="2" v-model="editLotData.address"></textarea>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Pin Code</label>
@@ -496,10 +671,173 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Number of Spots</label>
-                                <input type="number" class="form-control" v-model="editLotData.number_of_spots" required min="1" max="1000">
+                                <input type="number" class="form-control" v-model="editLotData.number_of_spots" min="1" required>
                             </div>
-                            <button type="submit" class="btn btn-primary">Update Lot</button>
                         </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="showEditModal = false">Cancel</button>
+                        <button type="button" class="btn btn-primary" @click="updateParkingLot">
+                            <i class="fas fa-save me-2"></i>Update Lot
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showProfileModal" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-user-edit me-2"></i>Admin Profile
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" @click="showProfileModal = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="saveAdminProfile">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Full Name</label>
+                                        <input type="text" class="form-control" v-model="profileData.full_name" 
+                                            :class="{'is-invalid': errors.full_name}">
+                                        <div v-if="errors.full_name" class="invalid-feedback">{{ errors.full_name[0] }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" v-model="profileData.email"
+                                            :class="{'is-invalid': errors.email}">
+                                        <div v-if="errors.email" class="invalid-feedback">{{ errors.email[0] }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Mobile Number</label>
+                                        <input type="text" class="form-control" v-model="profileData.mobile_number"
+                                            :class="{'is-invalid': errors.mobile_number}">
+                                        <div v-if="errors.mobile_number" class="invalid-feedback">{{ errors.mobile_number[0] }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Vehicle Type</label>
+                                        <select class="form-select" v-model="profileData.vehicle_type">
+                                            <option value="Car">Car</option>
+                                            <option value="Motorcycle">Motorcycle</option>
+                                            <option value="Truck">Truck</option>
+                                            <option value="Admin">Admin</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Vehicle Number</label>
+                                        <input type="text" class="form-control" v-model="profileData.vehicle_number"
+                                            :class="{'is-invalid': errors.vehicle_number}">
+                                        <div v-if="errors.vehicle_number" class="invalid-feedback">{{ errors.vehicle_number[0] }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Vehicle Brand</label>
+                                        <input type="text" class="form-control" v-model="profileData.vehicle_brand">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Address</label>
+                                <textarea class="form-control" rows="2" v-model="profileData.home_address"></textarea>
+                            </div>
+                            
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Confirm with Password <span class="text-danger">*</span></label>
+                                        <input type="password" class="form-control" v-model="profileData.current_password" 
+                                            placeholder="Enter admin password to confirm changes" required
+                                            :class="{'is-invalid': errors.current_password}">
+                                        <div v-if="errors.current_password" class="invalid-feedback">{{ errors.current_password[0] }}</div>
+                                        <small class="text-muted">Use your admin login password</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="showProfileModal = false">Close</button>
+                        <button type="button" class="btn btn-primary" @click="saveAdminProfile">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Details Modal -->
+        <div v-if="showUserDetailsModal" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-user me-2"></i>User Details
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" @click="showUserDetailsModal = false"></button>
+                    </div>
+                    <div class="modal-body" v-if="selectedUser">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Username:</strong> {{ selectedUser.username }}</p>
+                                <p><strong>Email:</strong> {{ selectedUser.email }}</p>
+                                <p><strong>Mobile:</strong> {{ selectedUser.mobile_number }}</p>
+                                <p><strong>Full Name:</strong> {{ selectedUser.full_name }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Vehicle:</strong> {{ selectedUser.vehicle_type }} - {{ selectedUser.vehicle_number }}</p>
+                                <p><strong>Brand:</strong> {{ selectedUser.vehicle_brand }}</p>
+                                <p><strong>Total Reservations:</strong> {{ selectedUser.stats?.total_reservations || 0 }}</p>
+                                <p><strong>Total Spent:</strong> ₹{{ selectedUser.stats?.total_spent || 0 }}</p>
+                            </div>
+                        </div>
+                        <div v-if="selectedUser.home_address">
+                            <p><strong>Address:</strong> {{ selectedUser.home_address }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete User Confirmation Modal -->
+        <div v-if="showDeleteModal" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete User
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" @click="showDeleteModal = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>You are about to permanently delete the user: <strong>{{ userToDelete?.username }}</strong></p>
+                        <p class="text-danger">This action cannot be undone!</p>
+                        <div class="mb-3">
+                            <label class="form-label">Type <strong>DELETE</strong> to confirm:</label>
+                            <input type="text" class="form-control" v-model="deleteConfirmation" placeholder="DELETE">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="showDeleteModal = false">Cancel</button>
+                        <button type="button" class="btn btn-danger" @click="deleteUser()" 
+                                :disabled="deleteConfirmation !== 'DELETE'">
+                            <i class="fas fa-trash me-2"></i>Delete User
+                        </button>
                     </div>
                 </div>
             </div>
@@ -509,3 +847,45 @@
     <script src="admin_dashboard.js"></script>
 </body>
 </html>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -38px;
+    width: 30px;
+    height: 30px;
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+</style>

@@ -1,0 +1,9 @@
+﻿"Reservation ID","Date","Parking Location","Spot ID","Start Time","End Time","Duration (Hours)","Cost (Rs)","Status","Lot Address","Generated On"
+"3","30/07/25","Test Location","1","15:17:11","Still Active","Active","0","Active","Test Avenue","30-07-2025 15:17:28 IST"
+
+"SUMMARY REPORT","","","","","","","","","",""
+"Total Reservations","1","","","","","","","","",""
+"Total Amount Spent","Rs. 0.00","","","","","","","","",""
+"Total Parking Hours","0.00","","","","","","","","",""
+"Average Cost per Hour","Rs. 0.00","","","","","","","","",""
+"NOTE: If dates show as ####, double-click column border to auto-fit","","","","","","","","","",""

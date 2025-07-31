@@ -64,13 +64,12 @@ redis_client = redis.Redis(  # connect to Redis server
 )
 cache_manager = CacheManager(redis_client)   # create cache manager instance
 
-def cache_response(cache_key_prefix, ttl=300, user_specific=False):   # enhanced cache decorator
-    """Enhanced cache decorator that properly handles query parameters"""
+def cache_response(cache_key_prefix, ttl=300, user_specific=False):   # enhanced cache decorator that handles query parameters
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             cache_params = {}   # build cache parameters 
-            
             if user_specific and hasattr(request, 'current_user'):  # add user-specific caching if needed
                 cache_params['user_id'] = request.current_user.id
 
@@ -79,13 +78,11 @@ def cache_response(cache_key_prefix, ttl=300, user_specific=False):   # enhanced
             
             cache_key = cache_manager.generate_cache_key(cache_key_prefix, **cache_params)  # generate unique cache key
 
-            # get cache
-            cached_data = cache_manager.get_cached_data(cache_key)
+            cached_data = cache_manager.get_cached_data(cache_key)   # get cache
             if cached_data:
                 return make_response(cached_data, 200)
 
-            # execute original function
-            result = func(*args, **kwargs)
+            result = func(*args, **kwargs)   # execute original function
 
             # cache the result if successful 
             if (hasattr(result, 'status_code') and 

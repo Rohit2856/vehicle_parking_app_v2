@@ -47,11 +47,11 @@ def create_parking_lot(current_user):
         if not data:
             return jsonify({'error': 'Request data required'}), 400
         
-        validation_errors = ParkingLotManager.validate_lot_data(data)  # Validate input data
+        validation_errors = ParkingLotManager.validate_lot_data(data)  # validate input data
         if validation_errors:
             return jsonify({'errors': validation_errors}), 400  
 
-        new_lot = ParkingLot(   # Create new parking lot instance
+        new_lot = ParkingLot(   # create new parking lot instance
             prime_location_name=data['prime_location_name'].strip(),
             price=float(data['price']),
             address=data.get('address', '').strip() or None,
@@ -147,14 +147,13 @@ def get_all_parking_lots(current_user):
 @admin_required
 @cache_response('lots_admin_detail', ttl=300)
 def get_parking_lot_details(current_user, lot_id):
-    # Get detailed information about a specific parking lot (cached)
+    # get detailed information about a specific parking lot
     try:
         lot = ParkingLot.query.get(lot_id)
-        
         if not lot:
             return jsonify({'error': 'Parking lot not found'}), 404
         
-        # Get spot details with current reservations
+        # get spot details with current reservations
         spots_data = []
         for spot in lot.spots:
             active_reservation = None
@@ -168,7 +167,6 @@ def get_parking_lot_details(current_user, lot_id):
                         'parking_cost': reservation.parking_cost
                     }
                     break
-            
             spots_data.append({
                 'id': spot.id,
                 'status': spot.status.value,
@@ -193,9 +191,7 @@ def get_parking_lot_details(current_user, lot_id):
                 'ttl': 300
             }
         }
-        
         return jsonify({'lot_details': lot_details}), 200
-        
     except Exception as e:
         return jsonify({'error': 'Failed to fetch lot details'}), 500
 
@@ -207,14 +203,11 @@ def update_parking_lot(current_user, lot_id):
     # update parking lot information & spot 
     try:
         lot = ParkingLot.query.get(lot_id)
-        
         if not lot:
             return jsonify({'error': 'Parking lot not found'}), 404
-        
         data = request.get_json()
         if not data:
             return jsonify({'error': 'Request data required'}), 400
-        
         validation_errors = ParkingLotManager.validate_lot_data(data)
         if validation_errors:
             return jsonify({'errors': validation_errors}), 400
@@ -242,7 +235,6 @@ def update_parking_lot(current_user, lot_id):
                 db.session.delete(available_spots[i])
         lot.number_of_spots = new_spot_count
         db.session.commit()
-        
         return jsonify({
             'message': 'Parking lot updated successfully',
             'lot': {
@@ -265,13 +257,12 @@ def update_parking_lot(current_user, lot_id):
 @admin_required
 @invalidate_cache(['lots_*', 'spots_*', 'analytics_*'])
 def delete_parking_lot(current_user, lot_id):
-    # Delete lot if all spots empty
+    # delete lot if all spots empty
     try:
         lot = ParkingLot.query.get(lot_id)
         if not lot:
             return jsonify({'error': 'Parking lot not found'}), 404
         
-        # check if any spot is occupied
         occupied_spots = [s for s in lot.spots if s.status == ParkingSpotStatus.occupied]
         if occupied_spots:
             return jsonify({
@@ -279,7 +270,6 @@ def delete_parking_lot(current_user, lot_id):
             }), 400
         db.session.delete(lot)
         db.session.commit()
-        
         return jsonify({'message': 'Parking lot deleted successfully'}), 200
     except Exception as e:
         db.session.rollback()
@@ -290,16 +280,13 @@ def delete_parking_lot(current_user, lot_id):
 @admin_required
 @cache_response('spots_admin_all', ttl=60)
 def get_all_parking_spots(current_user):
-    # all parking spots info 
+    # all parking spots info
     try:
-        # Get search parameters
         query = request.args.get('q', '').strip()
         status = request.args.get('status', '').strip()
         lot_id = request.args.get('lot_id')
-        
         spots_query = ParkingSpot.query.join(ParkingLot)
-        
-        # Apply filters if provided
+
         if query:
             spots_query = spots_query.filter(
                 db.or_(
@@ -312,7 +299,6 @@ def get_all_parking_spots(current_user):
             spots_query = spots_query.filter(ParkingSpot.status == status_enum)
         if lot_id:
             spots_query = spots_query.filter(ParkingSpot.lot_id == int(lot_id))
-        
         spots = spots_query.all()
         spots_data = []
 
@@ -320,21 +306,30 @@ def get_all_parking_spots(current_user):
             active_reservation = None
             vehicle_number = None
             can_delete = False
+            current_cost = 0  # Initialize current cost
+
             for reservation in spot.reservations:
                 if reservation.leaving_timestamp is None:
                     user = reservation.user
+                    duration_hours = (datetime.now(ist_timezone).replace(tzinfo=None) - reservation.parking_timestamp).total_seconds() / 3600
+                    hourly_rate = spot.lot.price
+                    current_cost = round(duration_hours * hourly_rate, 2)
+                    
                     active_reservation = {
                         'id': reservation.id,
                         'user_id': reservation.user_id,
                         'username': user.username,
                         'parking_timestamp': reservation.parking_timestamp.isoformat(),
-                        'duration_hours': (datetime.now(ist_timezone) - reservation.parking_timestamp).total_seconds() / 3600
+                        'duration_hours': round(duration_hours, 2),
+                        'current_cost': current_cost 
                     }
+                    
                     vehicle_number = user.vehicle_number if user.vehicle_number else 'Not provided'
                     break
 
             if spot.status == ParkingSpotStatus.available and active_reservation is None:
                 can_delete = True
+
             spots_data.append({
                 'id': spot.id,
                 'lot_id': spot.lot_id,
@@ -356,7 +351,6 @@ def get_all_parking_spots(current_user):
                 'ttl': 60
             }
         }), 200
-        
     except Exception as e:
         return jsonify({'error': 'Failed to fetch parking spots'}), 500
 
@@ -365,7 +359,6 @@ def get_all_parking_spots(current_user):
 @admin_required
 @invalidate_cache(['spots_*', 'lots_*', 'analytics_*'])
 def remove_individual_spot(current_user, spot_id):
-    # Remove a specific parking spot if it's available
     try:
         target_spot = ParkingSpot.query.get(spot_id)
         if not target_spot:
@@ -377,7 +370,7 @@ def remove_individual_spot(current_user, spot_id):
             return jsonify({'error': 'Spot has active reservations'}), 400
         parent_lot = target_spot.lot
         db.session.delete(target_spot)
-        parent_lot.number_of_spots = parent_lot.number_of_spots - 1  #update spot count
+        parent_lot.number_of_spots = parent_lot.number_of_spots - 1 # update parent lot's spot count
         db.session.commit()
         return jsonify({
             'message': 'Parking spot removed successfully',
@@ -394,7 +387,6 @@ def remove_individual_spot(current_user, spot_id):
 def get_all_users_with_parking_info(current_user):
     #users with their usage details 
     try:
-        # Get search parameters
         query = request.args.get('q', '').strip()
         email = request.args.get('email', '').strip()
         vehicle_type = request.args.get('vehicle_type', '').strip()
@@ -428,13 +420,17 @@ def get_all_users_with_parking_info(current_user):
                 current_spots.append({
                     'spot_id': reservation.spot_id,
                     'lot_name': reservation.spot.lot.prime_location_name,
+                    'lot_price': reservation.spot.lot.price,
                     'parking_since': reservation.parking_timestamp.isoformat(),
-                    'duration_hours': round((datetime.now(ist_timezone) - reservation.parking_timestamp).total_seconds() / 3600, 2)
+                    'duration_hours': round((datetime.now(ist_timezone).replace(tzinfo=None) - reservation.parking_timestamp).total_seconds() / 3600, 2)
                 })
-            
             users_data.append({
                 'id': user.id,
                 'username': user.username,
+                'email': user.email,                  
+                'full_name': user.full_name,           
+                'vehicle_type': user.vehicle_type,     
+                'vehicle_number': user.vehicle_number, 
                 'parking_stats': {
                     'total_reservations': total_reservations,
                     'active_reservations': len(active_reservations),
@@ -444,7 +440,6 @@ def get_all_users_with_parking_info(current_user):
                 'current_parking': current_spots,
                 'is_currently_parked': len(active_reservations) > 0
             })
-        
         return jsonify({
             'users': users_data,
             'total_users': len(users_data),
@@ -454,7 +449,6 @@ def get_all_users_with_parking_info(current_user):
                 'ttl': 300
             }
         }), 200
-        
     except Exception as e:
         return jsonify({'error': 'Failed to fetch users information'}), 500
 
@@ -463,7 +457,7 @@ def get_all_users_with_parking_info(current_user):
 @admin_required
 @cache_response('dashboard_admin_summary', ttl=120)
 def get_admin_dashboard_summary(current_user):
-    # comprehensive dashboard summary for admin 
+    # dashboard summary for admin
     try:
         total_users = User.query.filter_by(role=UserRole.user).count()
         total_lots = ParkingLot.query.count()
@@ -473,7 +467,6 @@ def get_admin_dashboard_summary(current_user):
         completed_reservations = Reservation.query.filter(Reservation.leaving_timestamp.isnot(None)).all()
         total_revenue = sum([r.parking_cost for r in completed_reservations if r.parking_cost])
         active_reservations = Reservation.query.filter(Reservation.leaving_timestamp.is_(None)).count()
-
         recent_reservations = Reservation.query.order_by(Reservation.id.desc()).limit(10).all()
         recent_activity = []
         for reservation in recent_reservations:
@@ -509,7 +502,6 @@ def get_admin_dashboard_summary(current_user):
             }
         }
         return jsonify(dashboard_summary), 200
-        
     except Exception as e:
         return jsonify({'error': 'Failed to fetch dashboard summary'}), 500
 
@@ -524,3 +516,188 @@ def clear_cache(current_user):
     except Exception as e:
         return jsonify({'error': 'Failed to clear cache'}), 500
     
+
+@admin_lot_bp.route('/export/csv/direct', methods=['GET'])
+@token_required
+@admin_required
+def direct_admin_csv_export(current_user):
+    try:
+        import csv
+        import io
+        from flask import make_response
+        output = io.StringIO()
+        writer = csv.writer(output, quoting=csv.QUOTE_ALL)
+        writer.writerow([
+            'User ID', 'Username', 'Email', 'Full Name', 'Mobile', 
+            'Vehicle Type', 'Vehicle Number', 'Total Reservations', 
+            'Total Spent (Rs)', 'Currently Parked', 'Last Activity', 
+            'Account Status'
+        ])
+        users = User.query.filter_by(role=UserRole.user).all()
+        
+        for user in users:
+            total_reservations = len(user.reservations)
+            completed_reservations = [r for r in user.reservations if r.leaving_timestamp]
+            total_spent = sum([r.parking_cost for r in completed_reservations if r.parking_cost])
+            active_reservations = [r for r in user.reservations if r.leaving_timestamp is None]
+            is_currently_parked = len(active_reservations) > 0
+            current_cost = 0
+            if is_currently_parked and active_reservations:
+                reservation = active_reservations[0]
+                duration_hours = (datetime.now(ist_timezone).replace(tzinfo=None) - reservation.parking_timestamp).total_seconds() / 3600
+                current_cost = duration_hours * reservation.spot.lot.price
+                total_spent += current_cost  
+            
+            # Last activity
+            last_activity = 'Currently Active' if is_currently_parked else (
+                user.last_activity.strftime('%Y-%m-%d') if hasattr(user, 'last_activity') and user.last_activity 
+                else 'No recent activity'
+            )
+            if is_currently_parked:
+                status = 'Currently Parked'
+            elif total_reservations > 0:
+                status = 'Active User'
+            else:
+                status = 'Registered Only'
+            
+            writer.writerow([
+                user.id,
+                user.username,
+                user.email,
+                user.full_name or 'Not provided',
+                user.mobile_number or 'Not provided',
+                user.vehicle_type or 'Not specified',
+                user.vehicle_number or 'Not provided',
+                total_reservations,
+                f"{total_spent:.2f}",
+                'Yes' if is_currently_parked else 'No',
+                last_activity,
+                status
+            ])
+
+        writer.writerow([])
+        writer.writerow(['ADMIN SUMMARY REPORT', '', '', '', '', '', '', '', '', '', '', ''])
+        writer.writerow(['Total Registered Users', len(users), '', '', '', '', '', '', '', '', '', ''])
+        writer.writerow(['Currently Parked Users', len([u for u in users if any(r.leaving_timestamp is None for r in u.reservations)]), '', '', '', '', '', '', '', '', '', ''])
+
+        all_reservations = Reservation.query.filter(Reservation.leaving_timestamp.isnot(None)).all()
+        total_revenue = sum([r.parking_cost for r in all_reservations if r.parking_cost])
+        writer.writerow(['Total System Revenue', f"Rs. {total_revenue:.2f}", '', '', '', '', '', '', '', '', '', ''])
+        writer.writerow(['Report Generated On', datetime.now(ist_timezone).strftime('%Y-%m-%d %H:%M:%S IST'), '', '', '', '', '', '', '', '', '', ''])
+
+        csv_content = output.getvalue()
+        output.close()
+        
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8-sig'
+        response.headers['Content-Disposition'] = f'attachment; filename=admin_parking_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        return response
+    except Exception as e:
+        return jsonify({'error': 'Failed to generate admin CSV export', 'details': str(e)}), 500
+
+@admin_lot_bp.route('/recent-activities', methods=['GET'])
+@token_required
+@admin_required
+def get_recent_activities(current_user):
+    try:
+        from datetime import datetime, timedelta
+        now = datetime.now(ist_timezone).replace(tzinfo=None)
+        all_activities = []
+        recent_releases = Reservation.query.filter(    # Get recent spot releases
+            Reservation.leaving_timestamp.isnot(None),
+            Reservation.leaving_timestamp >= now - timedelta(hours=24)
+        ).order_by(Reservation.leaving_timestamp.desc()).all()
+        
+        for res in recent_releases:
+            time_diff = now - res.leaving_timestamp
+            if time_diff.total_seconds() < 300:  # Less than 5 minutes
+                time_str = "Just now"
+            elif time_diff.total_seconds() < 3600:  # Less than 1 hour
+                minutes = int(time_diff.total_seconds() // 60)
+                time_str = f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+            else:
+                hours = int(time_diff.total_seconds() // 3600)
+                time_str = f"{hours} hour{'s' if hours != 1 else ''} ago"
+                
+            all_activities.append({
+                'type': 'spot_released',
+                'message': f'{res.user.username} released spot at {res.spot.lot.prime_location_name} - ₹{res.parking_cost:.2f} paid',
+                'time': time_str,
+                'icon': 'fas fa-sign-out-alt',
+                'color': 'success',
+                'sort_timestamp': res.leaving_timestamp.timestamp()  
+            })
+        recent_reservations = Reservation.query.filter(
+            Reservation.parking_timestamp >= now - timedelta(hours=24)
+        ).order_by(Reservation.parking_timestamp.desc()).all()
+        for res in recent_reservations:
+            time_diff = now - res.parking_timestamp
+            if time_diff.total_seconds() < 300:
+                time_str = "Just now"
+            elif time_diff.total_seconds() < 3600:
+                minutes = int(time_diff.total_seconds() // 60)
+                time_str = f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+            else:
+                hours = int(time_diff.total_seconds() // 3600)
+                time_str = f"{hours} hour{'s' if hours != 1 else ''} ago"
+                
+            all_activities.append({
+                'type': 'parking_reserved',
+                'message': f'{res.user.username} started parking at {res.spot.lot.prime_location_name}',
+                'time': time_str,
+                'icon': 'fas fa-car',
+                'color': 'info',
+                'sort_timestamp': res.parking_timestamp.timestamp()
+            })
+        recent_users = User.query.filter(
+            User.role == UserRole.user,
+            User.created_at >= now - timedelta(days=7)  # Last 7 days
+        ).order_by(User.created_at.desc()).all()
+        
+        for user in recent_users:
+            time_diff = now - user.created_at
+            if time_diff.days == 0:
+                if time_diff.total_seconds() < 3600:
+                    minutes = int(time_diff.total_seconds() // 60)
+                    time_str = f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+                else:
+                    hours = int(time_diff.total_seconds() // 3600)
+                    time_str = f"{hours} hour{'s' if hours != 1 else ''} ago"
+            else:
+                time_str = f"{time_diff.days} day{'s' if time_diff.days != 1 else ''} ago"
+                
+            all_activities.append({
+                'type': 'user_registered',
+                'message': f'New user registered: {user.username}',
+                'time': time_str,
+                'icon': 'fas fa-user-plus',
+                'color': 'primary',
+                'sort_timestamp': user.created_at.timestamp()
+            })
+        all_activities.sort(key=lambda x: x['sort_timestamp'], reverse=True)
+        for activity in all_activities:
+            del activity['sort_timestamp']
+        final_activities = all_activities[:8]
+        
+        print(f"Total activities found: {len(all_activities)}")  # Debug
+        print(f"Returning {len(final_activities)} activities")  # Debug
+        # If no activities, show system message
+        if not final_activities:
+            final_activities = [
+                {
+                    'type': 'system',
+                    'message': 'No recent activities in the last 24 hours',
+                    'time': 'System status',
+                    'icon': 'fas fa-info-circle',
+                    'color': 'secondary'
+                }
+            ]
+        return jsonify({'activities': final_activities}), 200
+    except Exception as e:
+        print(f"Error in recent activities: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'error': 'Failed to fetch recent activities',
+            'details': str(e)
+        }), 500

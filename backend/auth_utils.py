@@ -10,7 +10,7 @@ ist_timezone = pytz.timezone('Asia/Kolkata')
 class TokenManager:
     @staticmethod
     def generate_access_token(user):
-        # Generate JWT access token for authenticated user
+        # generate JWT access token for authenticated user
         payload = {
             'user_id': user.id,
             'username': user.username,
@@ -26,7 +26,7 @@ class TokenManager:
     
     @staticmethod
     def decode_token(token):
-        # Decode and validate JWT token
+        # decode and validate JWT token
         try:
             payload = jwt.decode(
                 token, 
@@ -39,8 +39,7 @@ class TokenManager:
         except jwt.InvalidTokenError:
             return None
 
-def token_required(f):
-    # Decorator to require valid JWT token
+def token_required(f):   # decorator to require valid JWT token
     @wraps(f)
     def decorated_function(*args, **kwargs):
         token = None
@@ -51,7 +50,6 @@ def token_required(f):
                 token = auth_header.split(' ')[1]  # Bearer <token>
             except IndexError:
                 return jsonify({'error': 'Invalid token format'}), 401
-        
         if not token:
             return jsonify({'error': 'Authentication token required'}), 401
         
@@ -64,25 +62,20 @@ def token_required(f):
             return jsonify({'error': 'User not found'}), 401
         
         return f(current_user, *args, **kwargs)
-    
     return decorated_function
 
-def admin_required(f):
-    # Decorator to require admin role
+def admin_required(f):    # decorator to require admin role
     @wraps(f)
     def decorated_function(current_user, *args, **kwargs):
         if current_user.role != UserRole.admin:
             return jsonify({'error': 'Admin privileges required'}), 403
         return f(current_user, *args, **kwargs)
-    
     return decorated_function
 
-def user_required(f):
-    #Decorator to require user role
+def user_required(f):   # decorator to require user role
     @wraps(f)
     def decorated_function(current_user, *args, **kwargs):
         if current_user.role != UserRole.user:
             return jsonify({'error': 'User access only'}), 403
         return f(current_user, *args, **kwargs)
-    
     return decorated_function

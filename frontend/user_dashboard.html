@@ -3,253 +3,1058 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle Parking App - User Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <title>User Dashboard - Vehicle Parking App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
 </head>
 <body>
     <div id="app">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-            <div class="container">
-                <a class="navbar-brand" href="#"> Vehicle Parking App</a>
-                <div class="navbar-nav ms-auto">
-                    <span class="navbar-text" v-if="user">
-                        Welcome, {{ user.username }}
-                    </span>
-                    <button class="btn btn-outline-light ms-2" @click="logout" v-if="user">
-                        Logout
-                    </button>
+        <!-- Navigation Bar -->
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-car me-2"></i>Vehicle Parking App
+                </a>
+                
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <div class="navbar-nav ms-auto d-flex align-items-center">
+                        <span class="navbar-text me-3" v-if="user">
+                            Welcome, <strong>{{ user.username }}</strong>!
+                        </span>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-light btn-sm" @click="openMyProfile()" v-if="user">
+                                <i class="fas fa-user me-2"></i>My Profile
+                            </button>
+                            <button class="btn btn-outline-light btn-sm" @click="logout" v-if="user">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </nav>
 
-        <!-- Registration Form -->
-        <div class="modal fade" :class="{show: showRegister}" :style="{display: showRegister ? 'block' : 'none'}" v-if="showRegister">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Register New User</h5>
-                        <button type="button" class="btn-close" @click="showRegister = false"></button>
+        <div class="main-container fade-in">
+            <!-- Responsive Tab Navigation -->
+            <ul class="nav nav-tabs" v-if="user">
+                <li class="nav-item">
+                    <a class="nav-link" :class="{'active': activeTab === 'dashboard'}" 
+                       @click="activeTab = 'dashboard'; fetchDashboard(); fetchCurrentReservation()">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        <span class="d-none d-sm-inline">Dashboard</span>
+                        <span class="d-sm-none">Home</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{'active': activeTab === 'reserve'}" 
+                       @click="activeTab = 'reserve'; fetchAvailableLots()">
+                        <i class="fas fa-search me-2"></i>
+                        <span class="d-none d-sm-inline">Find & Reserve</span>
+                        <span class="d-sm-none">Reserve</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{'active': activeTab === 'history'}" 
+                       @click="activeTab = 'history'; fetchHistory()">
+                        <i class="fas fa-history me-2"></i>
+                        <span class="d-none d-sm-inline">My History</span>
+                        <span class="d-sm-none">History</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{'active': activeTab === 'analytics'}" 
+                       @click="activeTab = 'analytics'; fetchUserAnalytics()">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        <span class="d-none d-sm-inline">My Analytics</span>
+                        <span class="d-sm-none">Charts</span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Dashboard Tab -->
+            <div v-if="activeTab === 'dashboard' && user" class="fade-in">
+                <div v-if="currentReservation" class="current-reservation">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8 col-md-7">
+                            <h4 class="mb-3">
+                                <i class="fas fa-car me-2"></i><strong>Currently Parked</strong>
+                            </h4>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <p class="mb-1"><strong>Location:</strong> {{ currentReservation.lot_name }}</p>
+                                    <p class="mb-1"><strong>Spot ID:</strong> {{ currentReservation.spot_id }}</p>
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <p class="mb-1"><strong>Duration:</strong> {{ currentReservation.current_duration_hours }} hours</p>
+                                    <p class="mb-1"><strong>Estimated Cost:</strong> ₹{{ currentReservation.estimated_cost }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 col-md-5 text-center mt-3 mt-md-0">
+                            <button class="btn btn-gradient-danger btn-lg w-100" 
+                                    @click="releaseSpot(currentReservation.reservation_id)">
+                                <i class="fas fa-sign-out-alt me-2"></i><strong>Release Spot</strong>
+                            </button>
+                        </div>
                     </div>
-                    <div class="modal-body">
-                        <form @submit.prevent="register">
-                            <div class="mb-3">
-                                <label class="form-label">Username</label>
-                                <input type="text" class="form-control" v-model="registerForm.username" required>
+                </div>
+
+                <div v-else class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i><strong>You don't have any active parking reservations.</strong>
+                </div>
+
+                <div class="row g-3 mb-4" v-if="dashboardData">
+                    <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6">
+                        <div class="stat-card">
+                            <div class="stat-number"><strong>{{ dashboardData.total_bookings || 0 }}</strong></div>
+                            <div class="stat-label"><strong>Total Bookings</strong></div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6">
+                        <div class="stat-card">
+                            <div class="stat-number"><strong>₹{{ dashboardData.total_spent || 0 }}</strong></div>
+                            <div class="stat-label"><strong>Total Spent</strong></div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6">
+                        <div class="stat-card">
+                            <div class="stat-number"><strong>{{ dashboardData.avg_duration || 0 }}h</strong></div>
+                            <div class="stat-label"><strong>Avg Duration</strong></div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6">
+                        <div class="stat-card">
+                            <div class="stat-number"><strong>{{ (dashboardData.favorite_location && dashboardData.favorite_location.length > 15) ? dashboardData.favorite_location.substring(0, 15) + '...' : (dashboardData.favorite_location || 'None') }}</strong></div>
+                            <div class="stat-label"><strong>Favorite Location</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="text-center py-5">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                        <p class="mt-2"><strong>Loading your dashboard...</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Find & Reserve Tab -->
+            <div v-if="activeTab === 'reserve' && user" class="fade-in">
+                <h3 class="mb-4">
+                    <i class="fas fa-search me-2"></i><strong>Available Parking Lots</strong>
+                </h3>
+                
+                <div class="row g-3">
+                    <div class="col-lg-6 col-md-6" v-for="lot in availableLots" :key="lot.id">
+                        <div class="lot-card">
+                            <h5><strong>{{ lot.prime_location_name }}</strong></h5>
+                            <p class="mb-2 text-light-custom">
+                                <strong>Price:</strong> ₹{{ lot.price }}/hour
+                            </p>
+                            <p class="mb-2 text-light-custom">
+                                <strong>Address:</strong> {{ lot.address }}
+                            </p>
+                            <p class="mb-3 text-light-custom">
+                                <strong>Available Spots:</strong> {{ lot.available_spots }}/{{ lot.number_of_spots }}
+                            </p>
+                            
+                            <div v-if="currentReservation && currentReservation.lot_id === lot.id" class="alert alert-success mb-3">
+                                <i class="fas fa-car me-2"></i><strong>You are currently parked here</strong>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Password</label>
-                                <input type="password" class="form-control" v-model="registerForm.password" required>
+                            
+                            <button 
+                                :class="getReserveButtonClass(lot)"
+                                @click="handleLotButtonClick(lot)"
+                                :disabled="isLotButtonDisabled(lot)"
+                                class="w-100">
+                                <i class="fas" :class="currentReservation && currentReservation.lot_id === lot.id ? 'fa-sign-out-alt' : (isLotButtonDisabled(lot) ? 'fa-lock' : 'fa-plus')"></i>
+                                <strong>{{ getReserveButtonText(lot) }}</strong>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="availableLots.length === 0" class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i><strong>No available parking lots at the moment.</strong>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div v-if="activeTab === 'history' && user" class="fade-in">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-3">
+                    <h3 class="mb-0"><i class="fas fa-history me-2"></i><strong>My Parking History</strong></h3>
+                    <button class="btn btn-gradient-success" @click="exportMyData()">
+                        <i class="fas fa-download me-2"></i><strong>Export Data</strong>
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th><strong>Lot Name</strong></th>
+                                        <th><strong>Spot ID</strong></th>
+                                        <th class="d-none d-md-table-cell"><strong>Start Time</strong></th>
+                                        <th class="d-none d-md-table-cell"><strong>End Time</strong></th>
+                                        <th><strong>Duration</strong></th>
+                                        <th><strong>Cost</strong></th>
+                                        <th><strong>Status</strong></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="record in parkingHistory" :key="record.reservation_id">
+                                        <td><strong>{{ record.lot_name }}</strong></td>
+                                        <td><strong>{{ record.spot_id }}</strong></td>
+                                        <td class="d-none d-md-table-cell">{{ formatDateTime(record.parking_timestamp) }}</td>
+                                        <td class="d-none d-md-table-cell">{{ record.leaving_timestamp ? formatDateTime(record.leaving_timestamp) : '-' }}</td>
+                                        <td>{{ record.duration_hours ? record.duration_hours + ' hrs' : '-' }}</td>
+                                        <td><strong>{{ record.parking_cost ? '₹' + record.parking_cost : '-' }}</strong></td>
+                                        <td>
+                                            <span :class="'badge ' + (record.status === 'Active' ? 'bg-warning' : 'bg-success')">
+                                                <strong>{{ record.status }}</strong>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <div v-if="parkingHistory.length === 0" class="text-center py-4">
+                                <i class="fas fa-info-circle me-2"></i><strong>No parking history found.</strong>
                             </div>
-                            <button type="submit" class="btn btn-primary">Register</button>
-                        </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div v-if="activeTab === 'analytics' && user" class="fade-in">
+                <h3 class="mb-4">
+                    <i class="fas fa-chart-bar me-2"></i><strong>My Analytics</strong>
+                </h3>
+                
+                <div v-if="isLoading" class="text-center py-5">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+                        <p class="mt-3"><strong>Loading your analytics...</strong></p>
+                    </div>
+                </div>
+
+                <div v-else class="row g-4">
+                    <div class="col-xl-6 col-lg-6">
+                        <div class="chart-container">
+                            <h5><strong>Monthly Spending Trend</strong></h5>
+                            <div style="height: 300px;">
+                                <canvas id="userSpendingChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-6 col-lg-6">
+                        <div class="chart-container">
+                            <h5><strong>Favorite Locations</strong></h5>
+                            <div style="height: 300px;">
+                                <canvas id="userLocationsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-6 col-lg-6">
+                        <div class="chart-container">
+                            <h5><strong>Duration Preferences</strong></h5>
+                            <div style="height: 300px;">
+                                <canvas id="userDurationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-6 col-lg-6">
+                        <div class="chart-container">
+                            <h5><strong>Weekly Activity</strong></h5>
+                            <div style="height: 300px;">
+                                <canvas id="userWeeklyChart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- User Dashboard -->
-        <div class="container mt-4" v-if="user && user.role === 'user'">
-            <!-- Current Reservation Alert -->
-            <div class="alert alert-info" v-if="currentReservation">
-                <h5> Currently Parked</h5>
-                <p><strong>Location:</strong> {{ currentReservation.lot_name }}</p>
-                <p><strong>Spot ID:</strong> {{ currentReservation.spot_id }}</p>
-                <p><strong>Duration:</strong> {{ currentReservation.current_duration_hours }} hours</p>
-                <p><strong>Estimated Cost:</strong> ₹{{ currentReservation.estimated_cost }}</p>
-                <button class="btn btn-warning" @click="releaseSpot(currentReservation.reservation_id)">
-                    Release Spot
-                </button>
+        <!-- BOOKING CONFIRMATION MODAL -->
+        <div v-if="showBookingModal" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-md">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-check-circle me-2 text-success"></i><strong>Booking Confirmed!</strong>
+                        </h5>
+                        <button type="button" class="btn-close" @click="closeBookingModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="booking-confirmation text-center">
+                            <i class="fas fa-car fa-3x mb-3"></i>
+                            <h4><strong>Successfully Reserved!</strong></h4>
+                            <p class="mb-0">Please proceed to your parking spot</p>
+                        </div>
+
+                        <div class="booking-details">
+                            <div class="detail-item">
+                                <span class="detail-label">
+                                    <i class="fas fa-map-marker-alt me-2"></i>Lot ID:
+                                </span>
+                                <span class="detail-value">{{ bookingDetails.lot_id }}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">
+                                    <i class="fas fa-parking me-2"></i>Spot ID:
+                                </span>
+                                <span class="detail-value">{{ bookingDetails.spot_id }}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">
+                                    <i class="fas fa-user me-2"></i>User ID:
+                                </span>
+                                <span class="detail-value">{{ bookingDetails.user_id }}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">
+                                    <i class="fas fa-car me-2"></i>Vehicle Number:
+                                </span>
+                                <span class="detail-value">{{ bookingDetails.vehicle_number || 'Not specified' }}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">
+                                    <i class="fas fa-clock me-2"></i>Reserved At:
+                                </span>
+                                <span class="detail-value">{{ formatDateTime(bookingDetails.parking_timestamp) }}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">
+                                    <i class="fas fa-money-bill-wave me-2"></i>Hourly Rate:
+                                </span>
+                                <span class="detail-value">₹{{ bookingDetails.hourly_rate }}/hour</span>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Important:</strong> Please note down your <strong>Spot ID: {{ bookingDetails.spot_id }}</strong> and proceed to <strong>{{ bookingDetails.lot_name }}</strong>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-gradient-primary btn-lg w-100" @click="closeBookingModal">
+                            <i class="fas fa-check me-2"></i><strong>OK, Got It!</strong>
+                        </button>
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <!-- Navigation Tabs -->
-            <ul class="nav nav-tabs" role="tablist">
-                <li class="nav-item">
-                    <a class="nav-link" :class="{active: activeTab === 'dashboard'}" 
-                       @click="activeTab = 'dashboard'; fetchDashboard()">Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{active: activeTab === 'lots'}" 
-                       @click="activeTab = 'lots'; fetchAvailableLots()">Available Lots</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{active: activeTab === 'history'}" 
-                       @click="activeTab = 'history'; fetchHistory()">Parking History</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{active: activeTab === 'analytics'}" 
-                       @click="activeTab = 'analytics'; fetchUserAnalytics()">My Analytics</a>
-                </li>
-            </ul>
+        <!-- Profile Modal -->
+        <div v-if="showProfileModal" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-user-edit me-2"></i><strong>My Profile</strong>
+                        </h5>
+                        <button type="button" class="btn-close" @click="showProfileModal = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Profile Header -->
+                        <div class="text-center mb-4">
+                            <div class="bg-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" 
+                                 style="width: 80px; height: 80px;">
+                                <i class="fas fa-user fa-2x text-white"></i>
+                            </div>
+                            <h4 class="mb-1"><strong>{{ profileData.full_name || profileData.username }}</strong></h4>
+                            <span class="badge bg-info"><strong>User Account</strong></span>
+                        </div>
 
-            <!-- Dashboard Tab -->
-            <div class="tab-content mt-3">
-                <div v-if="activeTab === 'dashboard'">
-                    <div class="row" v-if="dashboardData">
-                        <div class="col-md-3">
-                            <div class="card bg-primary text-white">
-                                <div class="card-body">
-                                    <h5>Total Reservations</h5>
-                                    <h3>{{ dashboardData.parking_stats.total_reservations }}</h3>
+                        <!-- Profile Stats -->
+                        <div class="row mb-4" v-if="profileStats">
+                            <div class="col-md-4 text-center">
+                                <div class="stat-card">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-orange);">
+                                        <strong>{{ profileStats.total_reservations || 0 }}</strong>
+                                    </div>
+                                    <small><strong>Total Bookings</strong></small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="stat-card">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--success-green);">
+                                        <strong>₹{{ profileStats.total_spent || 0 }}</strong>
+                                    </div>
+                                    <small><strong>Total Spent</strong></small>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="stat-card">
+                                    <div style="font-size: 1rem; font-weight: bold; color: var(--primary-navy);">
+                                        <strong>{{ profileStats.member_since || 'New Member' }}</strong>
+                                    </div>
+                                    <small><strong>Member Since</strong></small>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
-                                <div class="card-body">
-                                    <h5>Active Reservations</h5>
-                                    <h3>{{ dashboardData.parking_stats.active_reservations }}</h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-info text-white">
-                                <div class="card-body">
-                                    <h5>Total Spent</h5>
-                                    <h3>₹{{ dashboardData.parking_stats.total_amount_spent }}</h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-warning text-white">
-                                <div class="card-body">
-                                    <h5>Available Lots</h5>
-                                    <h3>{{ dashboardData.parking_stats.available_parking_lots }}</h3>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <div v-if="activeTab === 'lots'">
-                    <h4>Available Parking Lots</h4>
-                    <div class="row">
-                        <div class="col-md-4" v-for="lot in availableLots" :key="lot.id">
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    <h5 class="card-title">{{ lot.prime_location_name }}</h5>
-                                    <p class="card-text">
-                                        <strong>Price:</strong> ₹{{ lot.price }}/hour<br>
-                                        <strong>Address:</strong> {{ lot.address }}<br>
-                                        <strong>Available Spots:</strong> {{ lot.available_spots }}/{{ lot.number_of_spots }}
-                                    </p>
-                                    <button class="btn btn-primary" 
-                                            @click="reserveSpot(lot.id)"
-                                            :disabled="currentReservation">
-                                        Reserve Spot
-                                    </button>
+                        <!-- Profile Form -->
+                        <form @submit.prevent="saveUserProfile">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Full Name</strong></label>
+                                        <input type="text" class="form-control" v-model="profileData.full_name" 
+                                               :class="{'is-invalid': errors.full_name}">
+                                        <div v-if="errors.full_name" class="invalid-feedback">{{ errors.full_name[0] }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Email</strong></label>
+                                        <input type="email" class="form-control" v-model="profileData.email"
+                                               :class="{'is-invalid': errors.email}">
+                                        <div v-if="errors.email" class="invalid-feedback">{{ errors.email[0] }}</div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Mobile Number</strong></label>
+                                        <input type="text" class="form-control" v-model="profileData.mobile_number"
+                                               :class="{'is-invalid': errors.mobile_number}">
+                                        <div v-if="errors.mobile_number" class="invalid-feedback">{{ errors.mobile_number[0] }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Vehicle Type</strong></label>
+                                        <select class="form-select" v-model="profileData.vehicle_type">
+                                            <option value="">Select Vehicle Type</option>
+                                            <option value="Car">Car</option>
+                                            <option value="Motorcycle">Motorcycle</option>
+                                            <option value="Truck">Truck</option>
+                                            <option value="SUV">SUV</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Vehicle Number</strong></label>
+                                        <input type="text" class="form-control" v-model="profileData.vehicle_number"
+                                               :class="{'is-invalid': errors.vehicle_number}" placeholder="e.g., DL01AB1234">
+                                        <div v-if="errors.vehicle_number" class="invalid-feedback">{{ errors.vehicle_number[0] }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Vehicle Brand</strong></label>
+                                        <input type="text" class="form-control" v-model="profileData.vehicle_brand"
+                                               placeholder="e.g., Maruti, Honda, BMW">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Home Address</strong></label>
+                                <textarea class="form-control" rows="3" v-model="profileData.home_address"
+                                          placeholder="Enter your complete address"></textarea>
+                            </div>
+                        </form>
                     </div>
-                </div>
-
-                <!-- History Tab -->
-                <div v-if="activeTab === 'history'" class="tab-content">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4>Parking History</h4>
-                        <div>
-                            <button class="btn btn-primary me-2" @click="exportMyData">
-                                <i class="fas fa-download"></i>
-                                Export My Data (CSV)
-                            </button>
-                            <button class="btn btn-success" @click="requestMonthlyReport">
-                                <i class="fas fa-file-pdf"></i>
-                                Request Monthly Report
-                            </button>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Lot Name</th>
-                                    <th>Spot ID</th>
-                                    <th>Start Time</th>
-                                    <th>End Time</th>
-                                    <th>Duration</th>
-                                    <th>Cost</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="record in parkingHistory" :key="record.reservation_id">
-                                    <td>{{ record.lot_name }}</td>
-                                    <td>{{ record.spot_id }}</td>
-                                    <td>{{ formatDateTime(record.parking_timestamp) }}</td>
-                                    <td>{{ record.leaving_timestamp ? formatDateTime(record.leaving_timestamp) : '-' }}</td>
-                                    <td>{{ record.duration_hours ? record.duration_hours + ' hours' : '-' }}</td>
-                                    <td>{{ record.parking_cost ? '₹' + record.parking_cost : '-' }}</td>
-                                    <td>
-                                        <span class="badge" :class="record.status === 'Active' ? 'bg-success' : 'bg-secondary'">
-                                            {{ record.status }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Analytics Tab -->
-                <div v-if="activeTab === 'analytics'">
-                    <h4>My Parking Analytics</h4>
-                    
-                    <!-- Charts Row 1 -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6>Monthly Parking Activity</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="userMonthlyActivityChart" width="400" height="200"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6>Monthly Spending</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="userMonthlySpendingChart" width="400" height="200"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Charts Row 2 -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6>Parking Duration Preferences</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="userDurationPreferencesChart" width="400" height="200"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6>Favorite Parking Lots</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="userLotUsageChart" width="400" height="200"></canvas>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="showProfileModal = false">
+                            <i class="fas fa-times me-2"></i><strong>Cancel</strong>
+                        </button>
+                        <button type="button" class="btn btn-gradient-primary" @click="saveUserProfile">
+                            <i class="fas fa-save me-2"></i><strong>Save Changes</strong>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="user_dashboard.js"></script>
 </body>
 </html>
 
+    <style>
+        :root {
+            --primary-navy: #1e3a8a;
+            --secondary-navy: #1e40af;
+            --accent-orange: #f97316;
+            --accent-orange-light: #fb923c;
+            --success-green: #059669;
+            --warning-yellow: #d97706;
+            --danger-red: #dc2626;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --border-color: #e5e7eb;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* RESPONSIVE CONTAINER */
+        .main-container {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg);
+            margin: 15px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        /* MOBILE RESPONSIVE ADJUSTMENTS */
+        @media (max-width: 768px) {
+            .main-container {
+                margin: 10px;
+                padding: 15px;
+                border-radius: 15px;
+            }
+            
+            .navbar-brand {
+                font-size: 1rem !important;
+            }
+            
+            .nav-tabs .nav-link {
+                padding: 10px 15px !important;
+                font-size: 0.9rem;
+            }
+            
+            .btn {
+                padding: 8px 16px;
+                font-size: 0.9rem;
+            }
+            
+            .stat-card {
+                margin-bottom: 15px;
+            }
+            
+            .chart-container {
+                margin-bottom: 20px;
+            }
+            
+            .table-responsive {
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .main-container {
+                margin: 5px;
+                padding: 10px;
+            }
+            
+            .nav-tabs {
+                flex-wrap: wrap;
+            }
+            
+            .nav-tabs .nav-link {
+                flex: 1;
+                text-align: center;
+                min-width: 100px;
+            }
+        }
+
+        /* NAVIGATION STYLING */
+        .navbar {
+            background: var(--primary-navy) !important;
+            border-bottom: 3px solid var(--accent-orange);
+            box-shadow: var(--shadow-md);
+        }
+
+        .navbar-brand, .navbar-text, .nav-link {
+            color: white !important;
+            font-weight: 600;
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .btn-outline-light:hover {
+            background-color: var(--accent-orange);
+            border-color: var(--accent-orange);
+            transform: translateY(-1px);
+        }
+
+        /* ALL BLUE TABS - Different Shades */
+        .nav-tabs {
+            border-bottom: 3px solid #e3f2fd;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+        }
+
+        .nav-tabs .nav-link {
+            background: #2196f3; /* Standard blue for ALL inactive tabs */
+            border: 2px solid #1976d2;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px 10px 0 0;
+            margin-right: 5px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-tabs .nav-link.active {
+            background: #0d47a1; /* Darker blue for active tab */
+            color: white;
+            border: 2px solid #1565c0;
+            border-bottom-color: transparent;
+            box-shadow: 0 4px 8px rgba(13, 71, 161, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .nav-tabs .nav-link:hover:not(.active) {
+            background: #1976d2; /* Medium blue on hover */
+            color: white;
+            border-color: #1565c0;
+            transform: translateY(-1px);
+        }
+
+        /* Mobile responsive tabs */
+        @media (max-width: 768px) {
+            .nav-tabs .nav-link {
+                padding: 12px 20px;
+                font-size: 0.9rem;
+                margin-right: 2px;
+            }
+        }
+
+        /* ENHANCED CARD STYLING */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            background: linear-gradient(45deg, var(--primary-navy), var(--secondary-navy));
+            color: white;
+            border-bottom: 2px solid var(--accent-orange);
+            border-radius: 15px 15px 0 0 !important;
+            font-weight: 600;
+        }
+
+        /* MODERN BUTTON STYLING */
+        .btn-gradient-primary {
+            background: linear-gradient(45deg, var(--primary-navy), var(--secondary-navy));
+            border: none;
+            color: white;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-gradient-primary:hover {
+            background: linear-gradient(45deg, var(--secondary-navy), var(--primary-navy));
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            color: white;
+        }
+
+        .btn-gradient-success {
+            background: linear-gradient(45deg, var(--success-green), #10b981);
+            border: none;
+            color: white;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .btn-gradient-danger {
+            background: linear-gradient(45deg, var(--danger-red), #ef4444);
+            border: none;
+            color: white;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .btn-gradient-warning {
+            background: linear-gradient(45deg, var(--accent-orange), var(--accent-orange-light));
+            border: none;
+            color: white;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            border: none;
+            color: white;
+            font-weight: 600;
+        }
+
+        /* ENHANCED TABLE STYLING */
+        .table {
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+        }
+
+        .table th {
+            border-color: var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .table td {
+            border-color: var(--border-color);
+            font-weight: 500;
+        }
+
+        .table tbody tr:hover {
+            background: var(--bg-primary);
+        }
+
+        /* ENHANCED FORM STYLING */
+        .form-control, .form-select {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: var(--bg-secondary);
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 0 0.2rem rgba(249, 115, 22, 0.25);
+            color: var(--text-primary);
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        /* ENHANCED BADGE STYLING */
+        .badge {
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .bg-success { 
+            background: linear-gradient(45deg, var(--success-green), #10b981) !important; 
+        }
+        .bg-warning { 
+            background: linear-gradient(45deg, var(--warning-yellow), #f59e0b) !important; 
+            color: white !important;
+        }
+        .bg-danger { 
+            background: linear-gradient(45deg, var(--danger-red), #ef4444) !important; 
+        }
+        .bg-info { 
+            background: linear-gradient(45deg, var(--primary-navy), var(--secondary-navy)) !important; 
+        }
+
+        /* ENHANCED STAT CARDS */
+        .stat-card {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--accent-orange);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--accent-orange);
+            margin-bottom: 5px;
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        /* RESPONSIVE STAT CARDS */
+        @media (max-width: 768px) {
+            .stat-number {
+                font-size: 2rem;
+            }
+            
+            .stat-label {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* ENHANCED MODAL STYLING */
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            border-bottom: 2px solid var(--border-color);
+            background: var(--bg-primary);
+        }
+
+        .modal-footer {
+            border-top: 2px solid var(--border-color);
+            background: var(--bg-primary);
+        }
+
+        .modal-title {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        /* BOOKING CONFIRMATION MODAL STYLING */
+        .booking-confirmation {
+            background: linear-gradient(45deg, var(--success-green), #10b981);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .booking-details {
+            background: var(--bg-primary);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .detail-value {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        /* ENHANCED CHART CONTAINER */
+        .chart-container {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+        }
+
+        .chart-container:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .chart-container h5 {
+            color: var(--text-primary);
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        /* CURRENT RESERVATION ALERT */
+        .current-reservation {
+            background: linear-gradient(45deg, var(--success-green), #10b981);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            color: white;
+            box-shadow: var(--shadow-md);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* ENHANCED ALERT STYLING */
+        .alert {
+            border-radius: 12px;
+            border: 1px solid;
+            font-weight: 500;
+            padding: 16px 20px;
+        }
+
+        .alert-info {
+            background: linear-gradient(45deg, var(--primary-navy), var(--secondary-navy));
+            border-color: var(--primary-navy);
+            color: white;
+        }
+
+        .alert-warning {
+            background: linear-gradient(45deg, var(--warning-yellow), #f59e0b);
+            border-color: var(--warning-yellow);
+            color: white;
+        }
+
+        .alert-success {
+            background: linear-gradient(45deg, var(--success-green), #10b981);
+            border-color: var(--success-green);
+            color: white;
+        }
+
+        /* LOADING ANIMATIONS */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loading {
+            animation: pulse 2s infinite;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* ENHANCED TYPOGRAPHY */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.4;
+            margin-bottom: 1rem;
+        }
+
+        h1 { font-size: 2.5rem; }
+        h2 { font-size: 2rem; }
+        h3 { font-size: 1.75rem; }
+        h4 { font-size: 1.5rem; }
+        h5 { font-size: 1.25rem; }
+        h6 { font-size: 1.1rem; }
+
+        p, .table td, .table th {
+            font-weight: 500;
+        }
+
+        /* ENHANCED BUTTON TOUCH TARGETS */
+        @media (max-width: 768px) {
+            .btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+
+        /* ACCESSIBILITY IMPROVEMENTS */
+        .btn:focus,
+        .form-control:focus,
+        .form-select:focus {
+            outline: 2px solid var(--accent-orange);
+            outline-offset: 2px;
+        }
+
+        /* HOVER EFFECTS */
+        .nav-tabs .nav-link,
+        .btn,
+        .card,
+        .stat-card {
+            cursor: pointer;
+        }
+
+        /* LOT CARD STYLING */
+        .lot-card {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .lot-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent-orange);
+        }
+
+        .lot-card h5 {
+            color: var(--primary-navy);
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .text-light-custom {
+            color: var(--text-secondary) !important;
+        }
+
+        /* SMOOTH TRANSITIONS */
+        * {
+            transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+        }
+    </style>

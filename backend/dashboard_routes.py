@@ -12,20 +12,16 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @token_required
 @admin_required
 def admin_dashboard(current_user):
-    # Admin dashboard with system overview
     try:
-        # System statistics
         total_users = User.query.filter_by(role=UserRole.user).count()
         total_lots = ParkingLot.query.count()
         total_spots = ParkingSpot.query.count()
         occupied_spots = ParkingSpot.query.filter_by(status='O').count()
         available_spots = total_spots - occupied_spots
-        
-        # Recent activity
+
         recent_reservations = Reservation.query.order_by(
             Reservation.id.desc()
         ).limit(5).all()
-        
         dashboard_data = {
             'welcome_message': f'Welcome to Admin Dashboard, {current_user.username}',
             'user_info': {
@@ -45,9 +41,7 @@ def admin_dashboard(current_user):
                 'recent_reservations_count': len(recent_reservations)
             }
         }
-        
         return jsonify(dashboard_data), 200
-        
     except Exception as e:
         return jsonify({'error': 'Failed to load admin dashboard'}), 500
 
@@ -55,20 +49,15 @@ def admin_dashboard(current_user):
 @token_required
 @user_required
 def user_dashboard(current_user):
-    # User dashboard with personal parking information
     try:
-        # User's reservation statistics
         user_reservations = Reservation.query.filter_by(user_id=current_user.id).all()
         active_reservations = [r for r in user_reservations if r.leaving_timestamp is None]
         completed_reservations = [r for r in user_reservations if r.leaving_timestamp is not None]
         
-        # Available parking lots
         available_lots = ParkingLot.query.count()
         
-        # Calculate total spending
         total_spent = sum([r.parking_cost for r in completed_reservations if r.parking_cost])
         
-        # Current reservation details
         current_reservation = None
         if active_reservations:
             reservation = active_reservations[0]
@@ -114,7 +103,6 @@ def user_dashboard(current_user):
 @dashboard_bp.route('/profile', methods=['GET'])
 @token_required
 def get_user_profile(current_user):
-    # Get current user profile information
     try:
         profile_data = {
             'id': current_user.id,

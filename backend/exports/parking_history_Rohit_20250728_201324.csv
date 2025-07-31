@@ -1,0 +1,14 @@
+Reservation ID,Date,Parking Location,Spot ID,Start Time,End Time,Duration (Hours),Cost (Rs),Status,Lot Address,Generated On
+8,2025-07-27,midtown,77,19:50:30,Still Active,Active,0,Active,mid,2025-07-28 20:13:24 IST
+7,2025-07-26,Downtown,1,20:56:19,19:16:41,22.34,111.7,Completed,Downing Street,2025-07-28 20:13:24 IST
+6,2025-07-26,midtown,77,14:14:03,20:56:14,6.7,335.15,Completed,mid,2025-07-28 20:13:24 IST
+5,2025-07-26,Uptown,53,14:13:31,14:13:58,0.01,0.18,Completed,broadway,2025-07-28 20:13:24 IST
+3,2025-07-23,Uptown,51,18:58:55,20:32:19,49.56,1238.91,Completed,broadway,2025-07-28 20:13:24 IST
+2,2025-07-22,Downtown,1,16:15:10,16:29:11,0.23,1.17,Completed,Downing Street,2025-07-28 20:13:24 IST
+1,2025-07-22,Downtown,1,13:43:01,16:14:09,2.52,12.59,Completed,Downing Street,2025-07-28 20:13:24 IST
+
+SUMMARY,,,,,,,,,,
+Total Reservations,7,,,,,,,,,
+Total Amount Spent,Rs. 1699.70,,,,,,,,,
+Total Parking Hours,81.36 hours,,,,,,,,,
+Average Cost per Hour,Rs. 20.89,,,,,,,,,

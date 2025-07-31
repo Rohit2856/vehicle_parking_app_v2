@@ -1,12 +1,13 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_mail import Mail
 from config import Config
-from models import db, User, UserRole
+from extensions import db, migrate
+from models import User, UserRole
 from auth_routes import auth_bp
-from dashboard_routes import dashboard_bp
 from admin_lot_routes import admin_lot_bp
 from user_routes import user_bp
 from analytics_routes import analytics_bp
+from profile_routes import profile_bp
 from job_routes import job_bp
 from werkzeug.security import generate_password_hash
 import pytz
@@ -24,11 +25,11 @@ def create_app():
     
     app.config.from_object(Config)
     db.init_app(app)
+    migrate.init_app(app, db)
     mail = Mail(app)
     
     from celery_worker import make_celery   # initialize Celery
     celery = make_celery(app)
-    
     app.extensions['celery'] = celery
     app.extensions['mail'] = mail
     
@@ -38,19 +39,14 @@ def create_app():
         print("Redis connection successful")
     except Exception as e:
         print(f"Redis connection failed: {e}")
-
-    with app.app_context():    # set celery tasks within app context
-        from celery_tasks import setup_periodic_tasks, register_tasks
-        setup_periodic_tasks(celery)
-        app.celery_tasks = register_tasks(celery)
     
     # register api blueprints
     app.register_blueprint(auth_bp)
-    app.register_blueprint(dashboard_bp)
     app.register_blueprint(admin_lot_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(analytics_bp)
     app.register_blueprint(job_bp)
+    app.register_blueprint(profile_bp)
     
     # api status endpoint
     @app.route('/api/status')
@@ -138,7 +134,6 @@ def create_app():
             return send_from_directory(app.static_folder, path)
         return send_from_directory(app.static_folder, 'index.html')
     
-    # error handlers
     @app.errorhandler(404)
     def not_found_error(error):
         if request.path.startswith('/auth/') or request.path.startswith('/admin/') or \
@@ -207,30 +202,7 @@ if __name__ == '__main__':
     app = create_app()
     setup_database(app)
     worker_proc, beat_proc = start_celery_components() # to start Celery components automatically
-
-    print("\n" + "="*60)
-    print("VEHICLE PARKING APP - COMPLETE SYSTEM")
-    print("="*60)
-    print("Authentication & Role-based Access System Ready")
-    print("Admin Dashboard & Lot Management System Ready")  
-    print("User Dashboard & Reservation System Ready")
-    print("Analytics & Charts System Ready")
-    print("Redis Caching System Ready")
-    print("Celery Background Jobs System Ready")
-    print("Multi-Channel Notifications Ready (Email + Google Chat)")
-    print("CSV Export System Ready")
-    print("Scheduled Daily & Monthly Reports Ready")
-    print("="*60)
-    print("Notification Channels: Email, Google Chat")
-    print("Scheduled Jobs: Daily Reminders (8 AM), Monthly Reports (1st @ 9 AM)")
-    print("Background Jobs: CSV Export, Email Reports, GChat Notifications")
-    print("="*60)
-    print("FRONTEND + BACKEND UNIFIED SERVER")
-    print("Access entire application at: http://127.0.0.1:5000")
     print("API Documentation at: http://127.0.0.1:5000/api/status")
-    print("Health Check at: http://127.0.0.1:5000/health")
-    print("="*60 + "\n")
-    
     try:
         app.run(debug=True, host='0.0.0.0', port=5000)
     except KeyboardInterrupt:

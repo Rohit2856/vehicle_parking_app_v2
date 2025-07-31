@@ -1,8 +1,7 @@
 import enum
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-
-db = SQLAlchemy()
+from extensions import db
 
 # Enum for user roles
 class UserRole(enum.Enum):
@@ -29,6 +28,7 @@ class User(db.Model):
     vehicle_brand = db.Column(db.String(100), nullable=True)
     home_address = db.Column(db.Text, nullable=True)
     reservations = db.relationship('Reservation', back_populates='user')
+    last_activity = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

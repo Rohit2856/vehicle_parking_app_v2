@@ -85,28 +85,24 @@ createApp({
         },
 
         validateRegistrationForm() {
-            // Email validation
             const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailPattern.test(this.registerForm.email)) {
                 this.registerError = 'Please enter a valid email address';
                 return false;
             }
             
-            // Mobile number validation (Indian format)
             const mobilePattern = /^[6-9]\d{9}$/;
             if (!mobilePattern.test(this.registerForm.mobile_number)) {
                 this.registerError = 'Please enter a valid 10-digit Indian mobile number starting with 6-9';
                 return false;
             }
             
-            // Vehicle number validation
             const vehiclePattern = /^[A-Z]{2}\d{2}[A-Z]{1,2}\d{4}$/;
             if (!vehiclePattern.test(this.registerForm.vehicle_number.toUpperCase())) {
                 this.registerError = 'Please enter vehicle number in correct format (e.g., DL01AB1234)';
                 return false;
             }
             
-            // Gmail recommendation check
             if (!this.registerForm.email.endsWith('@gmail.com')) {
                 if (!confirm('We recommend using a Gmail account for better Google Chat integration. Continue with this email?')) {
                     return false;

@@ -17,6 +17,18 @@
                         <h1> Vehicle Parking App</h1>
                         <p class="lead">Smart Parking Management System</p>
                         <p>Manage your parking spaces efficiently</p>
+                        <p>Stay updated with real-time notifications</p>
+                        <p>Secure and user-friendly interface</p>
+                        <p>Available for both web and mobile</p>
+                        <p>For any issues, please reach out to us: <a href="mailto:23f1000362@ds.study.iitm.ac.in" style="color: white;">23f1000362@ds.study.iitm.ac.in & 9891195861</a></p>
+                        <p>Follow us on GitHub: 
+                            <a href="https://github.com/23f1000362" target="_blank" style="color: white;">GitHub Repository</a>
+                        </p>
+                        <p>Version: 2.0.0</p>
+                        <p>Last Updated: July 2025</p>
+                        <p>Developed by: Rohit Rai</p>
+                        <p>© 2025 Vehicle Parking App. All rights reserved.</p>
+
                     </div>
                 </div>
                 <div class="col-md-6 d-flex align-items-center justify-content-center">
@@ -58,13 +70,9 @@
                                 </div>
                                 <p class="mt-2">Logging in...</p>
                             </div>
-                            
-                            <!-- Error Message -->
                             <div v-if="error" class="alert alert-danger mt-3">
                                 {{ error }}
                             </div>
-                            
-                            <!-- Registration Link -->
                             <div class="text-center mt-3">
                                 <p>Don't have an account? 
                                     <a href="#" @click="showRegister = true">Register here</a>
@@ -87,7 +95,6 @@
                     <div class="modal-body">
                         <form @submit.prevent="register">
                             <div class="row">
-                                <!-- Basic Information -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Full Name *</label>
                                     <input type="text" class="form-control" v-model="registerForm.full_name" required 
@@ -116,7 +123,6 @@
                                 </div>
                             </div>
                             
-                            <!-- Contact Information -->
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Mobile Number *</label>
@@ -129,7 +135,6 @@
                                     <div class="form-text">10-digit Indian mobile number</div>
                                 </div>
 
-                                <!-- Vehicle Information -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Vehicle Type *</label>
                                     <select class="form-select" v-model="registerForm.vehicle_type" required>
@@ -154,15 +159,13 @@
                                         placeholder="e.g., Honda City, Royal Enfield">
                                 </div>
                             </div>
-                            
-                            <!-- Address -->
+
                             <div class="mb-3">
                                 <label class="form-label">Home Address (Optional)</label>
                                 <textarea class="form-control" v-model="registerForm.home_address" rows="2" 
                                         placeholder="Enter your home address for better service"></textarea>
                             </div>
-                            
-                            <!-- Terms and Submit -->
+
                             <div class="mb-3">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" v-model="registerForm.agree_terms" 

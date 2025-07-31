@@ -1,0 +1,12 @@
+﻿"Reservation ID","Date","Parking Location","Spot ID","Start Time","End Time","Duration (Hours)","Cost (Rs)","Status","Lot Address","Generated On"
+"7","30/07/25","Uptown","27","17:31:33","Still Active","Active","0","Active","upside","30-07-2025 17:50:39 IST"
+"6","30/07/25","Uptown","27","17:01:31","17:31:26","0.5","24.94","Completed","upside","30-07-2025 17:50:39 IST"
+"4","30/07/25","Uptown","28","15:54:29","16:55:41","1.02","51.0","Completed","upside","30-07-2025 17:50:39 IST"
+"3","30/07/25","Test Location","1","15:17:11","15:54:22","0.62","18.59","Completed","Test Avenue","30-07-2025 17:50:39 IST"
+
+"SUMMARY REPORT","","","","","","","","","",""
+"Total Reservations","4","","","","","","","","",""
+"Total Amount Spent","Rs. 94.53","","","","","","","","",""
+"Total Parking Hours","2.14","","","","","","","","",""
+"Average Cost per Hour","Rs. 44.17","","","","","","","","",""
+"NOTE: If dates show as ####, double-click column border to auto-fit","","","","","","","","","",""

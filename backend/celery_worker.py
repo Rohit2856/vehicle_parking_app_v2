@@ -1,18 +1,13 @@
 from celery import Celery
 
 def make_celery(app):
-    # Set up Celery to use Flask app config and Redis as broker
-    celery = Celery(
+    celery = Celery(      # set up Celery to use Flask app config and Redis as broker
         app.import_name,
         broker=app.config.get('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
         backend=app.config.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
     )
-    
-    # Update celery config from Flask app config
-    celery.conf.update(app.config)
-    
-    # ISt timezone
-    celery.conf.timezone = 'Asia/Kolkata'
+    celery.conf.update(app.config)  # Update celery config from Flask app config
+    celery.conf.timezone = 'Asia/Kolkata'  # ISt timezone
     
     # Configure task route
     celery.conf.task_routes = {
