@@ -15,8 +15,8 @@ class EmailTemplates:
         try:
             smtp_server = "smtp.gmail.com"
             smtp_port = 587
-            sender_email = "23f1000362@ds.study.iitm.ac.in"
-            sender_password = "pbss jvmv obmo dmik"
+            sender_email = "enter_your_mail"
+            sender_password = "enter_your_password"
             
             msg = MIMEMultipart('alternative')
             msg['From'] = sender_email
